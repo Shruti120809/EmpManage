@@ -11,22 +11,23 @@ namespace EmpManage.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly IAuthRepository _authrepo;
-        public AuthController( IAuthRepository authrepo) 
+        private readonly IUnitOfWork _unitofwork;
+        public AuthController( IUnitOfWork unitOfwork) 
         { 
-            _authrepo = authrepo;
+            _unitofwork = unitOfwork;
         }
 
         [HttpPost("register")]
         public async Task<IActionResult> Register ([FromBody] RegisterDTO registerdto)
         {
-            if (await _authrepo.UserExists(registerdto.Email))
+            if (await _unitofwork.Auth.UserExists(registerdto.Email))
                 return BadRequest(new ResponseDTO<object>(
                     400,
                     ResponseHelper.AlreadyExists("Email"),
                     null));
 
-            var newUser = await _authrepo.RegisterAsync(registerdto, User);
+            var newUser = await _unitofwork.Auth.RegisterAsync(registerdto, User);
+            await _unitofwork.CompleteAsync();
             return Ok(new ResponseDTO<object>(
                     200,
                     ResponseHelper.Fetched("User", newUser.Id),
@@ -37,7 +38,7 @@ namespace EmpManage.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login (LoginDTO logindto)
         {
-            var token = await _authrepo.LoginAsync(logindto);
+            var token = await _unitofwork.Auth.LoginAsync(logindto);
 
             if (token == null)
                 return Unauthorized(new ResponseDTO<object>(

@@ -55,6 +55,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Dependency Injection for repositories
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");

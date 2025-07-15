@@ -23,8 +23,8 @@
         public static string Removed(string item, object from, object to) =>
             $"{item} '{from}' was removed from '{to}'.";
 
-        public static string NotFound(string entity, object id) =>
-            $"{entity} with ID {id} was not found.";
+        public static string NotFound(string entity) =>
+            $"{entity} not found.";
 
         public static string AlreadyExists(string entity) =>
             $"{entity} already exists.";

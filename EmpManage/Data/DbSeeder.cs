@@ -1,61 +1,106 @@
 ﻿using EmpManage.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace EmpManage.Data
 {
     public class DbSeeder
     {
+        private static string HashPassword(string password)
+        {
+            using var sha256 = SHA256.Create();
+            var bytes = Encoding.UTF8.GetBytes(password);
+            var hashBytes = sha256.ComputeHash(bytes);
+            return Convert.ToBase64String(hashBytes);
+        }
+
         public static void SeedAdminUser(WebApplication app)
         {
-            using var scope = app.Services.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            Console.WriteLine("🔄 Seeding process started...");
 
-            // Apply migrations
-            context.Database.Migrate();
-
-            // Seed Roles
-            if (!context.Roles.Any())
+            try
             {
-                context.Roles.AddRange(
-                    new Role { Name = "Admin" },
-                    new Role { Name = "User" },
-                    new Role { Name = "Hr" },
-                    new Role { Name = "Manager" },
-                    new Role { Name = "Intern" }
-                );
-                context.SaveChanges();
-            }
+                using var scope = app.Services.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            // Check if Admin user exists
-            var admin = context.Employees.FirstOrDefault(e => e.Email == "admin1@gmail.com");
+                // Apply migrations
+                Console.WriteLine("📦 Applying migrations...");
+                context.Database.Migrate();
 
-            if (admin == null)
-            {
-                admin = new Employee
+                // ✅ Seed Roles
+                if (!context.Roles.Any())
                 {
-                    Name = "SuperAdmin",
-                    Email = "admin1@gmail.com",
-                    PasswordHash = Convert.FromBase64String("VffjapRV/CrbjNEA3bCHZoYGnR4sBg7FG9K4tBoFiAK+ymL9b8KXb82lLV3rLqb0BXKE/NGRK15emlFEp/GXLg=="),
-                    PasswordSalt = Convert.FromBase64String("sZneoUw1KBAVA4wwi5WwZ11pT3m2Yvg4xg51++fOsFPliPEp6t5eAd739+XUOeUhNtqm6/u/oj5bAq7e/lC5ciexUatoh1oS3yiJGoCRStuqQPIhPvGEdz6mzcm1nlltdPNGCNcMJz3CBfN8NhC2XlNbIrFkSXGFoEKdNY6KDCo=")
-                };
-
-                context.Employees.Add(admin);
-                context.SaveChanges();
-            }
-
-            // Assign Admin role to admin user
-            var adminRole = context.Roles.FirstOrDefault(r => r.Name == "Admin");
-
-            if (adminRole != null && !context.EmpRoles.Any(er => er.EmployeeId == admin.Id && er.RoleId == adminRole.Id))
-            {
-                context.EmpRoles.Add(new EmpRole
+                    Console.WriteLine("✅ Seeding roles...");
+                    context.Roles.AddRange(
+                        new Role { Name = "Admin" },
+                        new Role { Name = "User" },
+                        new Role { Name = "Hr" },
+                        new Role { Name = "Manager" },
+                        new Role { Name = "Intern" }
+                    );
+                    context.SaveChanges();
+                }
+                else
                 {
-                    EmployeeId = admin.Id,
-                    RoleId = adminRole.Id
-                });
+                    Console.WriteLine("ℹ️ Roles already exist.");
+                }
 
-                context.SaveChanges();
+                // ✅ Check if Admin user exists
+                var admin = context.Employees.FirstOrDefault(e => e.Email == "admin1@gmail.com");
+
+                if (admin == null)
+                {
+                    Console.WriteLine("✅ Creating SuperAdmin user...");
+                    admin = new Employee
+                    {
+                        Name = "SuperAdmin",
+                        Email = "admin1@gmail.com",
+                        Password = HashPassword("Admin@1"),
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "System"
+                    };
+
+                    context.Employees.Add(admin);
+                    context.SaveChanges();
+                    Console.WriteLine("New Admin ID: " + admin.Id);
+
+                    Console.WriteLine("✅ SuperAdmin created successfully.");
+                }
+                else
+                {
+                    Console.WriteLine("ℹ️ SuperAdmin already exists.");
+                }
+
+                // ✅ Re-fetch admin to ensure Id is available
+                admin = context.Employees.First(e => e.Email == "admin1@gmail.com");
+
+                // ✅ Assign Admin role if not already assigned
+                var adminRole = context.Roles.FirstOrDefault(r => r.Name == "Admin");
+
+                if (adminRole != null && !context.EmpRoles.Any(er => er.EmployeeId == admin.Id && er.RoleId == adminRole.Id))
+                {
+                    Console.WriteLine("✅ Assigning Admin role to SuperAdmin...");
+                    context.EmpRoles.Add(new EmpRole
+                    {
+                        EmployeeId = admin.Id,
+                        RoleId = adminRole.Id
+                    });
+
+                    context.SaveChanges();
+
+                    Console.WriteLine("✅ Admin role assigned successfully.");
+                }
+                else
+                {
+                    Console.WriteLine("ℹ️ Admin role already assigned or role not found.");
+                }
+
+                Console.WriteLine("🎉 Seeding process completed successfully.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error during seeding: {ex.Message}");
             }
         }
     }

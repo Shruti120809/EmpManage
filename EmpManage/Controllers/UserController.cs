@@ -2,7 +2,6 @@
 using EmpManage.DTOs;
 using EmpManage.Helper;
 using EmpManage.Interfaces;
-using EmpManage.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -12,22 +11,22 @@ namespace EmpManage.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(Roles = "User,Intern,Hr,Manager,Admin")]
-
     public class UserController : ControllerBase
     {
-        private readonly IEmployeeRepository _employeerepo;
+        private readonly IUnitOfWork _unitofwork;
         private readonly IMapper _mapper;
 
-        public UserController (IEmployeeRepository emprepo, IMapper mapper)
+        public UserController(IUnitOfWork unitofwork, IMapper mapper)
         {
-            _employeerepo = emprepo;
+            _unitofwork = unitofwork;
             _mapper = mapper;
         }
 
         [HttpGet("GetData")]
-        public async Task<IActionResult> GetProfile() {
+        public async Task<IActionResult> GetProfile()
+        {
             int empId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var employee = await _employeerepo.GetByIdAsync(empId);
+            var employee = await _unitofwork.Employee.GetByIdAsync(empId);
 
             if (employee == null)
                 return NotFound(new ResponseDTO<object>(
@@ -39,7 +38,7 @@ namespace EmpManage.Controllers
 
             return Ok(new ResponseDTO<object>(
                 200,
-                ResponseHelper.Success("fetched","User Profile"),
+                ResponseHelper.Success("fetched", "User Profile"),
                 employeedto));
         }
 
@@ -48,7 +47,7 @@ namespace EmpManage.Controllers
         {
             int empId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-            var existingEmployee = await _employeerepo.GetByIdAsync(empId);
+            var existingEmployee = await _unitofwork.Employee.GetByIdAsync(empId);
 
             if (existingEmployee == null || existingEmployee.IsDeleted)
             {
@@ -58,7 +57,8 @@ namespace EmpManage.Controllers
                     null));
             }
 
-            await _employeerepo.UpdateAsync(empId, updatedto, User);
+            await _unitofwork.Employee.UpdateAsync(empId, updatedto, User);
+            await _unitofwork.CompleteAsync();
 
             return Ok(new ResponseDTO<object>(
                 200,
@@ -66,17 +66,17 @@ namespace EmpManage.Controllers
                 null));
         }
 
-
         [HttpDelete("DeleteData")]
         public async Task<IActionResult> DeleteOwnAccount()
         {
             int empId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            await _employeerepo.DeleteAsync(empId);
+            await _unitofwork.Employee.DeleteAsync(empId);
+            await _unitofwork.CompleteAsync();
+
             return Ok(new ResponseDTO<object>(
                 200,
-                ResponseHelper.Deleted("User",empId),
+                ResponseHelper.Deleted("User", empId),
                 null));
         }
-
     }
 }

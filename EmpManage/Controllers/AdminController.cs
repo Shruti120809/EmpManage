@@ -13,42 +13,41 @@ namespace EmpManage.Controllers
     [Authorize(Roles = "Admin")]
     public class AdminController : ControllerBase
     {
-        private readonly IEmployeeRepository _emprepo;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
 
-        public AdminController(IEmployeeRepository emprepo, IMapper mapper)
+        public AdminController(IUnitOfWork unitOfWork, IMapper mapper)
         {
-            _emprepo = emprepo;
+            _unitOfWork = unitOfWork;
             _mapper = mapper;
         }
 
         [HttpGet("GetAll")]
         public async Task<IActionResult> GetAll()
         {
-            int empId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var employee = await _emprepo.GetByIdAsync(empId);
+            var employees = await _unitOfWork.Employee.GetAllAsync();
 
-            if (employee == null)
+            if (employees == null || !employees.Any())
             {
                 return NotFound(new ResponseDTO<object>(
                     404,
-                    ResponseHelper.NotFound("User", empId),
+                    ResponseHelper.NotFound("Users"),
                     null));
             }
 
-            var employeeDto = _mapper.Map<EmployeeDTO>(employee); // mapped result
+            var employeeDtos = employees.Select(e => _mapper.Map<EmployeeDTO>(e)).ToList();
 
             return Ok(new ResponseDTO<object>(
                 200,
-                ResponseHelper.Success("fetched", "User Profile"),
-                employeeDto));
+                ResponseHelper.Success("fetched", "All Users"),
+                employeeDtos)); ;
         }
 
         [HttpPost("AssignRoles")]
         public async Task<IActionResult> AssignRole(AssignRoleDTO assignrole)
         {
-            var user = await _emprepo.GetByIdAsync(assignrole.EmployeeId);
-            var roles = await _emprepo.GetRolesByIdsAsync(assignrole.RoleId);
+            var user = await _unitOfWork.Employee.GetByIdAsync(assignrole.EmployeeId);
+            var roles = await _unitOfWork.Employee.GetRolesByIdsAsync(assignrole.RoleId);
 
             if (user == null || roles == null)
             {
@@ -58,7 +57,7 @@ namespace EmpManage.Controllers
                     null));
             }
 
-            await _emprepo.AssignRoleAsync(assignrole);
+            await _unitOfWork.Employee.AssignRoleAsync(assignrole);
 
             return Ok(new ResponseDTO<object>(
                 200,
@@ -69,8 +68,8 @@ namespace EmpManage.Controllers
         [HttpPost("RemoveRoles")]
         public async Task<IActionResult> RemoveRoles(RemoveRoleDTO dto)
         {
-            var user = await _emprepo.GetByIdAsync(dto.EmployeeId);
-            var roles = await _emprepo.GetRolesByIdsAsync(dto.RoleIds);
+            var user = await _unitOfWork.Employee.GetByIdAsync(dto.EmployeeId);
+            var roles = await _unitOfWork.Employee.GetRolesByIdsAsync(dto.RoleIds);
 
             if (user == null || roles == null || !roles.Any())
             {
@@ -80,7 +79,7 @@ namespace EmpManage.Controllers
                     null));
             }
 
-            await _emprepo.RemoveRoleAsync(dto);
+            await _unitOfWork.Employee.RemoveRoleAsync(dto);
 
             return Ok(new ResponseDTO<object>(
                 200,
@@ -91,7 +90,7 @@ namespace EmpManage.Controllers
         [HttpGet("GetById")]
         public async Task<IActionResult> GetById(int id)
         {
-            var user = await _emprepo.GetByIdAsync(id);
+            var user = await _unitOfWork.Employee.GetByIdAsync(id);
             if (user == null)
             {
                 return NotFound(new ResponseDTO<object>(
@@ -115,7 +114,7 @@ namespace EmpManage.Controllers
         [HttpPut("UpdateById")]
         public async Task<IActionResult> UpdateById(int id, UpdateDTO updatedto)
         {
-            await _emprepo.UpdateByIdAdminAsync(id, updatedto);
+            await _unitOfWork.Employee.UpdateByIdAdminAsync(id, updatedto);
             return Ok(new ResponseDTO<object>(
                 200,
                 ResponseHelper.Updated("User", id),
@@ -125,7 +124,7 @@ namespace EmpManage.Controllers
         [HttpDelete("DeleteById")]
         public async Task<IActionResult> DeleteById(int id)
         {
-            await _emprepo.DeleteAsync(id);
+            await _unitOfWork.Employee.DeleteAsync(id);
             return Ok(new ResponseDTO<object>(
                 200,
                 ResponseHelper.Deleted("User", id),

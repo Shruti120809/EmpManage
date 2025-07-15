@@ -35,8 +35,9 @@ namespace EmpManage.Repositories
             var user = await _context.Employees.FirstOrDefaultAsync(e => e.Email == logindto.Email);
             if(user == null) return null;
 
-            if(!VerifyPasswordHash(logindto.Password, user.PasswordHash, user.PasswordSalt)) return null;
-
+            var hashedInput = HashPassword(logindto.Password);
+            if(user.Password != hashedInput)
+                return null;
             var roles = await _context.EmpRoles
                 .Where(er => er.EmployeeId == user.Id)
                 .Select(er => er.Role!.Name)
@@ -48,14 +49,12 @@ namespace EmpManage.Repositories
 
         public async Task<Employee> RegisterAsync(RegisterDTO registerdto, ClaimsPrincipal user)
         {
-            CreatePasswordHash(registerdto.Password, out byte[] passwordhash, out byte[] passwordsalt);
 
             var employee = new Employee
             {
                 Name = registerdto.Name,
                 Email = registerdto.Email,
-                PasswordHash = passwordhash,
-                PasswordSalt = passwordsalt,
+                Password = HashPassword(registerdto.Password),
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = UserClaimsHelper.GetCurrentUserName(user)
             };
@@ -108,18 +107,13 @@ namespace EmpManage.Repositories
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        private void CreatePasswordHash (string password, out byte[] hash, out byte[] salt)
-        {
-            using var hmac = new HMACSHA512();
-            salt = hmac.Key;
-            hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
-        }
 
-        private bool VerifyPasswordHash (string password, byte[] storedhash, byte[] storedSalt)
+        private string HashPassword(string password)
         {
-            using var hmac = new HMACSHA512(storedSalt);
-            var computeHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
-            return computeHash.SequenceEqual(storedhash);
+            using var sha256 = SHA256.Create();
+            var bytes = Encoding.UTF8.GetBytes(password);
+            var hashBytes = sha256.ComputeHash(bytes);
+            return Convert.ToBase64String(hashBytes);
         }
     }
-}
+} 

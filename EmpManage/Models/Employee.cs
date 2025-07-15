@@ -15,8 +15,7 @@ namespace EmpManage.Models
         public string Email { get; set; } = string.Empty;
 
         [Required]
-        public byte[]? PasswordHash { get; set; }
-        public byte[]? PasswordSalt { get; set; }
+        public string Password {  get; set; } = string.Empty;
         public ICollection<EmpRole>? EmpRoles { get; set; }
     }
 }
