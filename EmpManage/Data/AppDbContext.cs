@@ -17,6 +17,9 @@ namespace EmpManage.Data
             // Composite key for many-to-many relation
             modelBuilder.Entity<EmpRole>()
                 .HasKey(er => new { er.EmployeeId, er.RoleId });
+
+            modelBuilder.Entity<Employee>().HasQueryFilter(e => !e.IsDeleted);
+
         }
 
     }

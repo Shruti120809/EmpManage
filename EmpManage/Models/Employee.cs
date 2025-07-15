@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EmpManage.Models
 {
-    public class Employee
+    public class Employee : BaseEntity
     {
         [Key]
         public int Id { get; set; }
@@ -16,11 +16,7 @@ namespace EmpManage.Models
 
         [Required]
         public byte[]? PasswordHash { get; set; }
-
-        [Required]
         public byte[]? PasswordSalt { get; set; }
-
-        // ✅ Removed RoleId - managed through EmpRoles
         public ICollection<EmpRole>? EmpRoles { get; set; }
     }
 }

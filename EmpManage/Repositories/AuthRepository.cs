@@ -1,7 +1,9 @@
 ﻿using EmpManage.Data;
 using EmpManage.DTOs;
+using EmpManage.Helper;
 using EmpManage.Interfaces;
 using EmpManage.Models;
+using Microsoft.AspNetCore.Authentication.OAuth.Claims;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -44,7 +46,7 @@ namespace EmpManage.Repositories
             return token;
         }
 
-        public async Task<Employee> RegisterAsync(RegisterDTO registerdto)
+        public async Task<Employee> RegisterAsync(RegisterDTO registerdto, ClaimsPrincipal user)
         {
             CreatePasswordHash(registerdto.Password, out byte[] passwordhash, out byte[] passwordsalt);
 
@@ -54,13 +56,15 @@ namespace EmpManage.Repositories
                 Email = registerdto.Email,
                 PasswordHash = passwordhash,
                 PasswordSalt = passwordsalt,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = UserClaimsHelper.GetCurrentUserName(user)
             };
 
             await _context.Employees.AddAsync(employee);
             await _context.SaveChangesAsync();
 
             var defaultRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "User");
-            if(defaultRole != null)
+            if (defaultRole != null)
             {
                 await _context.EmpRoles.AddAsync(new EmpRole
                 {
@@ -73,6 +77,7 @@ namespace EmpManage.Repositories
 
             return employee;
         }
+
 
         private string CreateJWTToken(Employee employee, List<string> roles)
         {

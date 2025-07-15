@@ -1,133 +1,132 @@
 ﻿using EmpManage.Data;
 using EmpManage.DTOs;
+using EmpManage.Helper;
 using EmpManage.Interfaces;
 using EmpManage.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace EmpManage.Repositories
 {
     public class EmployeeRepository : IEmployeeRepository
     {
         private readonly AppDbContext _context;
-        private readonly IConfiguration _config;
 
-        public EmployeeRepository(AppDbContext context, IConfiguration config)
+        public EmployeeRepository(AppDbContext context)
         {
             _context = context;
-            _config = config;
         }
 
-        //User: Get own data
         public async Task<Employee?> GetByIdAsync(int id)
         {
             return await _context.Employees
-                .Include(e => e.EmpRoles)
-                .ThenInclude(er => er.Role)
-                .FirstOrDefaultAsync(e => e.Id == id);
-        }
-        //User: Update own data
-        public async Task UpdateAsync(int Id, UpdateDTO updatedto)
-        {
-            var employee = await _context.Employees.FirstOrDefaultAsync(e => e.Id == Id);
-            if (employee == null) return;
-
-            employee.Name = updatedto.Name;
-            employee.Email = updatedto.Email;
-
-            _context.Employees.Update(employee);
-            await _context.SaveChangesAsync();
+                .Include(e => e.EmpRoles).ThenInclude(er => er.Role)
+                .FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted);
         }
 
-        //User: Delete own account
-        public async Task DeleteAsync(int id)
-        {
-            var employee = await _context.Employees.FirstOrDefaultAsync(e => e.Id == id);
-
-            if (employee != null)
-            {
-                _context.Employees.Remove(employee);
-                await _context.SaveChangesAsync();
-            }
-        }
-
-        //Admin: Get all employees
         public async Task<IEnumerable<Employee>> GetAllAsync()
         {
             return await _context.Employees
-                .Include(e => e.EmpRoles)
-                .ThenInclude(er => er.Role)
+                .Include(e => e.EmpRoles).ThenInclude(er => er.Role)
+                .Where(e => !e.IsDeleted)
                 .ToListAsync();
         }
 
-        //Admin: Get by ID
-        public async Task<Employee> GetByIdAdminAsync(int id)
+        public async Task UpdateAsync(int id, UpdateDTO updatedto, ClaimsPrincipal user)
         {
-            return await _context.Employees
-                .Include(e => e.EmpRoles)
-                .ThenInclude(er => er.Role)
-                .FirstOrDefaultAsync(e => e.Id == id);
-        }
-
-        //Admin: Update by ID
-        public async Task UpdateByIdAdminAsync(int Id, UpdateDTO updatedto)
-        {
-            var employee = await _context.Employees.FindAsync(Id);
+            var employee = await _context.Employees.FindAsync(id);
             if (employee == null) return;
 
             employee.Name = updatedto.Name;
             employee.Email = updatedto.Email;
 
-            _context.Employees.Update(employee);
+            employee.UpdatedBy = UserClaimsHelper.GetCurrentUserName(user);
+            employee.UpdatedAt = DateTime.UtcNow;
+
             await _context.SaveChangesAsync();
         }
 
-        //Admin: Delete User by Id
-        public async Task DeleteByIdAdminAsync(int Id)
+        public async Task DeleteAsync(int id)
         {
-            var employee = await _context.Employees.FindAsync(Id);
-            if (employee != null)
+            var employee = await _context.Employees.FindAsync(id);
+            if (employee != null && !employee.IsDeleted)
             {
-                var roles = _context.EmpRoles.Where(r => r.EmployeeId == Id);
-                _context.EmpRoles.RemoveRange(roles);
-
-                _context.Employees.Remove(employee);
+                employee.IsDeleted = true;
+                employee.UpdatedAt = DateTime.UtcNow;
+                employee.UpdatedBy = "System";
                 await _context.SaveChangesAsync();
             }
         }
 
-        //Admin: Assign role to a user
-        public async Task AssignRoleAsync(AssignRoleDTO dto)
+        public async Task<Employee?> GetByIdAdminAsync(int id)
         {
-            foreach (var roleId in dto.RoleIds)
-            {
-                var exists = await _context.EmpRoles
-                    .AnyAsync(er => er.EmployeeId == dto.EmployeeId && er.RoleId == roleId);
+            return await _context.Employees
+                .Include(e => e.EmpRoles).ThenInclude(er => er.Role)
+                .FirstOrDefaultAsync(e => e.Id == id);
+        }
 
-                if (!exists)
+        public async Task UpdateByIdAdminAsync(int id, UpdateDTO updatedto)
+        {
+            var employee = await _context.Employees.FindAsync(id);
+            if (employee != null)
+            {
+                employee.Name = updatedto.Name;
+                employee.Email = updatedto.Email;
+                employee.UpdatedAt = DateTime.UtcNow;
+                employee.UpdatedBy = "Admin";
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task DeleteByIdAdminAsync(int id)
+        {
+            var employee = await _context.Employees.FindAsync(id);
+            if (employee != null)
+            {
+                employee.IsDeleted = true;
+                employee.UpdatedAt = DateTime.UtcNow;
+                employee.UpdatedBy = "Admin";
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task AssignRoleAsync(AssignRoleDTO assignrole)
+        {
+            foreach (var roleId in assignrole.RoleId)
+            {
+                var alreadyAssigned = await _context.EmpRoles
+                    .AnyAsync(er => er.EmployeeId == assignrole.EmployeeId && er.RoleId == roleId);
+
+                if (!alreadyAssigned)
                 {
-                    await _context.EmpRoles.AddAsync(new EmpRole
+                    _context.EmpRoles.Add(new EmpRole
                     {
-                        EmployeeId = dto.EmployeeId,
+                        EmployeeId = assignrole.EmployeeId,
                         RoleId = roleId
                     });
                 }
             }
-
             await _context.SaveChangesAsync();
         }
 
         public async Task RemoveRoleAsync(RemoveRoleDTO dto)
         {
-            var roleAssignment = await _context.EmpRoles
-                .FirstOrDefaultAsync(er => er.EmployeeId == dto.EmployeeId && er.RoleId == dto.RoleId);
+            var roleAssignments = _context.EmpRoles
+                .Where(er => er.EmployeeId == dto.EmployeeId && dto.RoleIds.Contains(er.RoleId));
 
-            if (roleAssignment != null)
-            {
-                _context.EmpRoles.Remove(roleAssignment);
-                await _context.SaveChangesAsync();
-            }
+            _context.EmpRoles.RemoveRange(roleAssignments);
+            await _context.SaveChangesAsync();
         }
 
+        public async Task<List<Role>> GetRolesByIdsAsync(List<int> ids)
+        {
+            return await _context.Roles.Where(r => ids.Contains(r.Id)).ToListAsync();
+        }
+
+        public async Task<Role?> GetRoleByIdAsync(int id)
+        {
+            return await _context.Roles.FindAsync(id);
+        }
 
         public async Task<bool> SaveChangesAsync()
         {

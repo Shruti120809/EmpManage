@@ -1,7 +1,9 @@
 ﻿using EmpManage.Data;
 using EmpManage.DTOs;
+using EmpManage.Helper;
 using EmpManage.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace EmpManage.Controllers
 {
@@ -16,14 +18,21 @@ namespace EmpManage.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register (RegisterDTO registerdto)
+        public async Task<IActionResult> Register ([FromBody] RegisterDTO registerdto)
         {
             if (await _authrepo.UserExists(registerdto.Email))
-                return BadRequest("Email Already Registered");
+                return BadRequest(new ResponseDTO<object>(
+                    400,
+                    ResponseHelper.AlreadyExists("Email"),
+                    null));
 
-            var newUser = await _authrepo.RegisterAsync(registerdto);
-            return Ok(new { message = "Registration successful", newUser.Id, newUser.Email });
-        }
+            var newUser = await _authrepo.RegisterAsync(registerdto, User);
+            return Ok(new ResponseDTO<object>(
+                    200,
+                    ResponseHelper.Fetched("User", newUser.Id),
+                    new { newUser.Id, newUser.Email }
+                ));
+        } 
 
         [HttpPost("login")]
         public async Task<IActionResult> Login (LoginDTO logindto)
@@ -31,9 +40,15 @@ namespace EmpManage.Controllers
             var token = await _authrepo.LoginAsync(logindto);
 
             if (token == null)
-                return Unauthorized("Invalid email or password.");
+                return Unauthorized(new ResponseDTO<object>(
+                    401,
+                    ResponseHelper.Unauthorized(),
+                    null ));
 
-            return Ok(new { token });
+            return Ok(new ResponseDTO<object>(
+                200,
+                ResponseHelper.LoggedIn("User"),
+                new { token }));
         }
     }
 }
