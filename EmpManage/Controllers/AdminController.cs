@@ -23,112 +23,111 @@ namespace EmpManage.Controllers
         }
 
         [HttpGet("GetAll")]
-        public async Task<IActionResult> GetAll()
+        public async Task<ResponseDTO<object>> GetAll()
         {
             var employees = await _unitOfWork.Employee.GetAllAsync();
 
             if (employees == null || !employees.Any())
             {
-                return NotFound(new ResponseDTO<object>(
+               return new ResponseDTO<object>(
                     404,
-                    ResponseHelper.NotFound("Users"),
-                    null));
+                    ResponseHelper.NotFound("User or Role"),
+                    null);
             }
 
             var employeeDtos = employees.Select(e => _mapper.Map<EmployeeDTO>(e)).ToList();
 
-            return Ok(new ResponseDTO<object>(
+            return new ResponseDTO<object>(
                 200,
-                ResponseHelper.Success("fetched", "All Users"),
-                employeeDtos)); ;
+                ResponseHelper.Success("Fetched", "All Users"),
+                employeeDtos);
         }
 
+
         [HttpPost("AssignRoles")]
-        public async Task<IActionResult> AssignRole(AssignRoleDTO assignrole)
+        public async Task<ResponseDTO<object>> AssignRole(AssignRoleDTO assignrole)
         {
             var user = await _unitOfWork.Employee.GetByIdAsync(assignrole.EmployeeId);
             var roles = await _unitOfWork.Employee.GetRolesByIdsAsync(assignrole.RoleId);
 
             if (user == null || roles == null)
             {
-                return NotFound(new ResponseDTO<object>(
+                return new ResponseDTO<object>(
                     404,
-                    ResponseHelper.NotFound("User or Role", assignrole.EmployeeId),
-                    null));
+                    ResponseHelper.NotFound("User or Role"),
+                    null);
             }
 
             await _unitOfWork.Employee.AssignRoleAsync(assignrole);
 
-            return Ok(new ResponseDTO<object>(
+            return new ResponseDTO<object>(
                 200,
                 ResponseHelper.Assigned("Roles", string.Join(", ", roles.Select(r => r.Name)), user.Name),
-                null));
+                null);
         }
 
         [HttpPost("RemoveRoles")]
-        public async Task<IActionResult> RemoveRoles(RemoveRoleDTO dto)
+        public async Task<ResponseDTO<object>> RemoveRoles(RemoveRoleDTO dto)
         {
             var user = await _unitOfWork.Employee.GetByIdAsync(dto.EmployeeId);
             var roles = await _unitOfWork.Employee.GetRolesByIdsAsync(dto.RoleIds);
 
             if (user == null || roles == null || !roles.Any())
             {
-                return NotFound(new ResponseDTO<object>(
+                return new ResponseDTO<object>(
                     404,
-                    ResponseHelper.NotFound("User or Roles", dto.EmployeeId),
-                    null));
+                    ResponseHelper.NotFound("User or Roles"),
+                    null);
             }
 
             await _unitOfWork.Employee.RemoveRoleAsync(dto);
 
-            return Ok(new ResponseDTO<object>(
+            return new ResponseDTO<object>(
                 200,
                 ResponseHelper.Removed("Roles", string.Join(", ", roles.Select(r => r.Name)), user.Name),
-                null));
+                null);
         }
 
         [HttpGet("GetById")]
-        public async Task<IActionResult> GetById(int id)
+        public async Task<ResponseDTO<object>> GetById(int id)
         {
             var user = await _unitOfWork.Employee.GetByIdAsync(id);
+
             if (user == null)
             {
-                return NotFound(new ResponseDTO<object>(
+                return new ResponseDTO<object>(
                     404,
-                    ResponseHelper.NotFound("User", id),
-                    null));
+                    ResponseHelper.NotFound("User"),
+                    null);
             }
 
-            return Ok(new ResponseDTO<object>(
+            var employeeDto = _mapper.Map<EmployeeDTO>(user);
+
+            return new ResponseDTO<object>(
                 200,
                 ResponseHelper.Retrieved("User", id),
-                new
-                {
-                    id = user.Id,
-                    name = user.Name,
-                    email = user.Email,
-                    Roles = user.EmpRoles?.Select(r => r.Role?.Name).ToList()
-                }));
+                employeeDto);
         }
 
+
         [HttpPut("UpdateById")]
-        public async Task<IActionResult> UpdateById(int id, UpdateDTO updatedto)
+        public async Task<ResponseDTO<object>> UpdateById(int id, UpdateDTO updatedto)
         {
             await _unitOfWork.Employee.UpdateByIdAdminAsync(id, updatedto);
-            return Ok(new ResponseDTO<object>(
+            return new ResponseDTO<object>(
                 200,
                 ResponseHelper.Updated("User", id),
-                null));
+                null);
         }
 
         [HttpDelete("DeleteById")]
-        public async Task<IActionResult> DeleteById(int id)
+        public async Task<ResponseDTO<object>> DeleteById(int id)
         {
             await _unitOfWork.Employee.DeleteAsync(id);
-            return Ok(new ResponseDTO<object>(
+            return new ResponseDTO<object>(
                 200,
                 ResponseHelper.Deleted("User", id),
-                null));
+                null);
         }
     }
 }

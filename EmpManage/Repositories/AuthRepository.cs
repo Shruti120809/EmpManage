@@ -4,6 +4,7 @@ using EmpManage.Helper;
 using EmpManage.Interfaces;
 using EmpManage.Models;
 using Microsoft.AspNetCore.Authentication.OAuth.Claims;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -47,36 +48,36 @@ namespace EmpManage.Repositories
             return token;
         }
 
-        public async Task<Employee> RegisterAsync(RegisterDTO registerdto, ClaimsPrincipal user)
+        public async Task<Employee?> RegisterAsync(RegisterDTO dto, ClaimsPrincipal user)
         {
+            var formattedName = char.ToUpper(dto.Name[0]) + dto.Name.Substring(1).ToLower();
+            var email = dto.Email.Trim().ToLower();
+
+            var existingUser = await _context.Employees.FirstOrDefaultAsync(e => e.Email == email);
+            if (existingUser != null)
+                return null;
 
             var employee = new Employee
             {
-                Name = registerdto.Name,
-                Email = registerdto.Email,
-                Password = HashPassword(registerdto.Password),
+                Name = formattedName,
+                Email = email,
+                Password = HashPassword(dto.Password),
                 CreatedAt = DateTime.UtcNow,
-                CreatedBy = UserClaimsHelper.GetCurrentUserName(user)
+                CreatedBy = "Self"
             };
 
-            await _context.Employees.AddAsync(employee);
-            await _context.SaveChangesAsync();
-
-            var defaultRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "User");
-            if (defaultRole != null)
+            var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "User");
+            if (role != null)
             {
-                await _context.EmpRoles.AddAsync(new EmpRole
-                {
-                    EmployeeId = employee.Id,
-                    RoleId = defaultRole.Id
-                });
-
-                await _context.SaveChangesAsync();
+                employee.EmpRoles = new List<EmpRole>
+        {
+            new EmpRole { RoleId = role.Id }
+        };
             }
 
+            await _context.Employees.AddAsync(employee);
             return employee;
         }
-
 
         private string CreateJWTToken(Employee employee, List<string> roles)
         {
@@ -86,7 +87,6 @@ namespace EmpManage.Repositories
                 new Claim(ClaimTypes.Name, employee.Name),
                 new Claim(ClaimTypes.Email, employee.Email)
             };
-
 
             foreach (var role in roles)
             {
@@ -106,7 +106,6 @@ namespace EmpManage.Repositories
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
-
 
         private string HashPassword(string password)
         {

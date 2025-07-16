@@ -1,4 +1,5 @@
 ﻿using EmpManage.Data;
+using EmpManage.Extensions;
 using EmpManage.Interfaces;
 using EmpManage.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -8,6 +9,7 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
 
 // Add services to the container
 builder.Services.AddControllers();
@@ -52,10 +54,9 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Connection")));
 
-// Dependency Injection for repositories
-builder.Services.AddScoped<IAuthRepository, AuthRepository>();
-builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
-builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// Repositories
+builder.Services.AddRepositories();
 
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");

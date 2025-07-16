@@ -17,36 +17,61 @@ namespace EmpManage.Controllers
             _unitofwork = unitOfwork;
         }
 
-        [HttpPost("register")]
-        public async Task<IActionResult> Register ([FromBody] RegisterDTO registerdto)
+        [HttpPost("Register")]
+        public async Task<ResponseDTO<object>> Register([FromBody] RegisterDTO dto)
         {
-            if (await _unitofwork.Auth.UserExists(registerdto.Email))
-                return BadRequest(new ResponseDTO<object>(
-                    400,
-                    ResponseHelper.AlreadyExists("Email"),
-                    null));
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
 
-            var newUser = await _unitofwork.Auth.RegisterAsync(registerdto, User);
+                return new ResponseDTO<object>(
+                    400,
+                    "Validation Failed",
+                    errors);
+            }
+
+            var Name = dto.Name;
+            if ( Name == null || Name == "" || Name.All(char.IsWhiteSpace) || Name != Name.Trim())
+                {
+                    return new ResponseDTO<object>(
+                        400,
+                        "Validation Failed",
+                        new List<string> { "Name cannot be empty, contain only spaces, or start/end with spaces." });
+                }
+
+            var email = dto.Email.Trim().ToLower();
+
+            if (await _unitofwork.Auth.UserExists(email))
+            {
+                return new ResponseDTO<object>(
+                    409,
+                    "Email already exists.",
+                    null);
+            }
+            var newUser = await _unitofwork.Auth.RegisterAsync(dto, User);
             await _unitofwork.CompleteAsync();
-            return Ok(new ResponseDTO<object>(
-                    200,
-                    ResponseHelper.Fetched("User", newUser.Id),
-                    new { newUser.Id, newUser.Email }
-                ));
-        } 
+
+            return new ResponseDTO<object>(
+                200,
+                "User registered successfully.",
+                new { newUser.Id, newUser.Email });
+        }
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login (LoginDTO logindto)
+        public async Task<ResponseDTO<object>> Login (LoginDTO logindto)
         {
             var token = await _unitofwork.Auth.LoginAsync(logindto);
 
             if (token == null)
-                return Unauthorized(new ResponseDTO<object>(
+                return new ResponseDTO<object>(
                     401,
                     ResponseHelper.Unauthorized(),
-                    null ));
+                    null );
 
-            return Ok(new ResponseDTO<object>(
+            return  (new ResponseDTO<object>(
                 200,
                 ResponseHelper.LoggedIn("User"),
                 new { token }));

@@ -37,14 +37,18 @@ namespace EmpManage.Repositories
             var employee = await _context.Employees.FindAsync(id);
             if (employee == null) return;
 
-            employee.Name = updatedto.Name;
-            employee.Email = updatedto.Email;
+            var trimmedName = updatedto.Name.Trim();
+            var formattedName = char.ToUpper(trimmedName[0]) + trimmedName.Substring(1).ToLower();
+
+            employee.Name = formattedName;
+            employee.Email = updatedto.Email.Trim().ToLower();
 
             employee.UpdatedBy = UserClaimsHelper.GetCurrentUserName(user);
             employee.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
+            _context.Employees.Update(employee);
         }
+
 
         public async Task DeleteAsync(int id)
         {

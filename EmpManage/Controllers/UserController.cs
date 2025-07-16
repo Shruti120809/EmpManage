@@ -23,60 +23,70 @@ namespace EmpManage.Controllers
         }
 
         [HttpGet("GetData")]
-        public async Task<IActionResult> GetProfile()
+        public async Task<ResponseDTO<object>> GetProfile()
         {
             int empId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var employee = await _unitofwork.Employee.GetByIdAsync(empId);
 
             if (employee == null)
-                return NotFound(new ResponseDTO<object>(
+                return (new ResponseDTO<object>(
                     404,
-                    ResponseHelper.NotFound("User", employee),
+                    ResponseHelper.NotFound("User"),
                     null));
 
             var employeedto = _mapper.Map<EmployeeDTO>(employee);
 
-            return Ok(new ResponseDTO<object>(
+            return (new ResponseDTO<object>(
                 200,
                 ResponseHelper.Success("fetched", "User Profile"),
                 employeedto));
         }
 
-        [HttpPut("Update")]
-        public async Task<IActionResult> UpdateProfile(UpdateDTO updatedto)
+        [HttpPut("Update/{id}")]
+        public async Task<ResponseDTO<object>> UpdateProfile(int id, [FromBody] UpdateDTO updatedto)
         {
-            int empId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-            var existingEmployee = await _unitofwork.Employee.GetByIdAsync(empId);
+            int currentUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-            if (existingEmployee == null || existingEmployee.IsDeleted)
+            if (id != currentUserId)
             {
-                return NotFound(new ResponseDTO<object>(
-                    404,
-                    ResponseHelper.NotFound("User", empId),
-                    null));
+                return new ResponseDTO<object>(
+                    403,
+                    "You are not authorized to update this profile.",
+                    null);
             }
 
-            await _unitofwork.Employee.UpdateAsync(empId, updatedto, User);
+            var existingEmployee = await _unitofwork.Employee.GetByIdAsync(id);
+            if (existingEmployee == null || existingEmployee.IsDeleted)
+            {
+                return new ResponseDTO<object>(
+                    404,
+                    ResponseHelper.NotFound("User"),
+                    null);
+            }
+
+            await _unitofwork.Employee.UpdateAsync(id, updatedto, User);
             await _unitofwork.CompleteAsync();
 
-            return Ok(new ResponseDTO<object>(
+            return new ResponseDTO<object>(
                 200,
-                ResponseHelper.Updated("User", empId),
-                null));
+                ResponseHelper.Updated("User", id),
+                null);
         }
 
-        [HttpDelete("DeleteData")]
-        public async Task<IActionResult> DeleteOwnAccount()
-        {
-            int empId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            await _unitofwork.Employee.DeleteAsync(empId);
-            await _unitofwork.CompleteAsync();
 
-            return Ok(new ResponseDTO<object>(
-                200,
-                ResponseHelper.Deleted("User", empId),
-                null));
-        }
+
+        //[HttpDelete("DeleteData")]
+        //public async Task<ResponseDTO<object>> DeleteOwnAccount()
+        //{
+        //    int empId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        //    await _unitofwork.Employee.DeleteAsync(empId);
+        //    await _unitofwork.CompleteAsync();
+
+        //    return (new ResponseDTO<object>(
+        //        200,
+        //        ResponseHelper.Deleted("User", empId),
+        //        null));
+        //}
     }
 }

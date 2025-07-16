@@ -10,7 +10,16 @@ namespace EmpManage.Helper
             CreateMap<Employee, EmployeeDTO>()
                 .ForMember(dest => dest.Roles, opt =>
                     opt.MapFrom(src => src.EmpRoles!.Select(er => er.Role!.Name).ToList()));
+
+            CreateMap<RegisterDTO, Employee>()
+                .ForMember(dest => dest.Name, opt => opt.Ignore())
+                .ForMember(dest => dest.Email, opt => opt.Ignore())
+                .ForMember(dest => dest.EmpRoles, opt => opt.Ignore());
+
+
         }
+
+
 
     }
 }

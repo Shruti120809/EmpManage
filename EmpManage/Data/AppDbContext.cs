@@ -14,7 +14,7 @@ namespace EmpManage.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Composite key for many-to-many relation
+            // many-to-many relation
             modelBuilder.Entity<EmpRole>()
                 .HasKey(er => new { er.EmployeeId, er.RoleId });
 
