@@ -8,8 +8,6 @@
         public static string Success(string action, string entity) =>
             $"{entity} {action} sucessfully";
 
-        public static string Fetched(string entity, object id) =>
-            $"{entity} with ID {id} was created successfully.";
 
         public static string Updated(string entity, object id) =>
             $"{entity} with ID {id} was updated successfully.";

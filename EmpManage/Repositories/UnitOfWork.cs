@@ -7,16 +7,20 @@ namespace EmpManage.Repositories
     {
         private readonly AppDbContext _context;
 
+
         public IAuthRepository Auth { get; }
         public IEmployeeRepository Employee { get; }
+        public IAddPermissionRepository AddPermission { get; }
 
         public UnitOfWork(AppDbContext context,
                           IAuthRepository authRepository,
-                          IEmployeeRepository employeeRepository)
+                          IEmployeeRepository employeeRepository, 
+                          IAddPermissionRepository addPermissionRepository)
         {
             _context = context;
             Auth = authRepository;
             Employee = employeeRepository;
+            AddPermission = addPermissionRepository; 
         }
 
         public async Task<int> CompleteAsync()

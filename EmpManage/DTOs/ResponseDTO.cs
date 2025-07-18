@@ -13,7 +13,6 @@
             Message = message;
             Data = data;
         }
-
         public ResponseDTO() { }
     }
 

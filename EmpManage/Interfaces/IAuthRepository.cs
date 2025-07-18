@@ -8,6 +8,6 @@ namespace EmpManage.Interfaces
     {
         Task<bool> UserExists(string email);
         Task<Employee> RegisterAsync(RegisterDTO registerdto, ClaimsPrincipal user);
-        Task<string?> LoginAsync(LoginDTO logindto);
+        Task<LoginResponseDTO> LoginAsync(LoginDTO logindto);
     }
 }

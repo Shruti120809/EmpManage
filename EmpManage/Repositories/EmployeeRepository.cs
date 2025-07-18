@@ -17,6 +17,14 @@ namespace EmpManage.Repositories
             _context = context;
         }
 
+        public async Task<Employee?> GetByEmailAsync(string email)
+        {
+            return await _context.Employees
+                .Include(e => e.EmpRoles)
+                    .ThenInclude(er => er.Role)
+                .FirstOrDefaultAsync(e => e.Email == email);
+        }
+
         public async Task<Employee?> GetByIdAsync(int id)
         {
             return await _context.Employees

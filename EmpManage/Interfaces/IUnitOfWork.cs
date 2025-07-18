@@ -4,6 +4,7 @@
     {
         IAuthRepository Auth { get; }
         IEmployeeRepository Employee { get; }
+        IAddPermissionRepository AddPermission { get; }
 
         Task<int> CompleteAsync();
     }

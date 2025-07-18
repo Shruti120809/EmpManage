@@ -61,20 +61,21 @@ namespace EmpManage.Controllers
         }
 
         [HttpPost("login")]
-        public async Task<ResponseDTO<object>> Login (LoginDTO logindto)
+        public async Task<ResponseDTO<object>> Login(LoginDTO logindto)
         {
-            var token = await _unitofwork.Auth.LoginAsync(logindto);
+            var response = await _unitofwork.Auth.LoginAsync(logindto);
 
-            if (token == null)
+            if (response == null)
                 return new ResponseDTO<object>(
                     401,
                     ResponseHelper.Unauthorized(),
-                    null );
+                    null);
 
-            return  (new ResponseDTO<object>(
+            return new ResponseDTO<object>(
                 200,
                 ResponseHelper.LoggedIn("User"),
-                new { token }));
+                response);
         }
+
     }
 }

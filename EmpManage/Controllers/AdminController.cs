@@ -88,7 +88,7 @@ namespace EmpManage.Controllers
                 null);
         }
 
-        [HttpGet("GetById")]
+        [HttpGet("Get/{id}")]
         public async Task<ResponseDTO<object>> GetById(int id)
         {
             var user = await _unitOfWork.Employee.GetByIdAsync(id);
@@ -110,7 +110,7 @@ namespace EmpManage.Controllers
         }
 
 
-        [HttpPut("UpdateById")]
+        [HttpPut("Update/{id}")]
         public async Task<ResponseDTO<object>> UpdateById(int id, UpdateDTO updatedto)
         {
             await _unitOfWork.Employee.UpdateByIdAdminAsync(id, updatedto);
@@ -120,7 +120,7 @@ namespace EmpManage.Controllers
                 null);
         }
 
-        [HttpDelete("DeleteById")]
+        [HttpDelete("Delete/{id}")]
         public async Task<ResponseDTO<object>> DeleteById(int id)
         {
             await _unitOfWork.Employee.DeleteAsync(id);
