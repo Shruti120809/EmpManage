@@ -8,6 +8,8 @@
         public static string Success(string action, string entity) =>
             $"{entity} {action} sucessfully";
 
+        public static string BadRequest(string action) =>
+            $"{action} is invalid or expired";
 
         public static string Updated(string entity, object id) =>
             $"{entity} with ID {id} was updated successfully.";

@@ -10,6 +10,7 @@ namespace EmpManage.Extensions
             services.AddScoped<IAuthRepository, AuthRepository>();
             services.AddScoped<IEmployeeRepository, EmployeeRepository>();
             services.AddScoped<IAddPermissionRepository, AddPermissionRepository>();
+            services.AddScoped<IEmailRepository, EmailRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             return services;

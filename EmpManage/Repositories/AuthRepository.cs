@@ -1,4 +1,5 @@
-﻿using EmpManage.Data;
+﻿using AutoMapper;
+using EmpManage.Data;
 using EmpManage.DTOs;
 using EmpManage.Helper;
 using EmpManage.Interfaces;
@@ -12,7 +13,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using AutoMapper;
+using System.Web.Helpers;
 
 namespace EmpManage.Repositories
 {
@@ -21,17 +22,24 @@ namespace EmpManage.Repositories
         private readonly AppDbContext _context;
         private readonly IConfiguration _config;
         private readonly IMapper _mapper;
+        private readonly IEmailRepository _emailRepository;
 
-        public AuthRepository(AppDbContext context, IConfiguration config, IMapper mapper)
+        public AuthRepository(AppDbContext context, IConfiguration config, IMapper mapper, IEmailRepository emailRepository)
         {
             _context = context;
             _config = config;
             _mapper = mapper;
+            _emailRepository = emailRepository;
         }
 
         public async Task<bool> UserExists(string email)
         {
             return await _context.Employees.AnyAsync(u => u.Email == email);
+        }
+
+        public async Task<Employee?> GetUserByEmailAsync(string email)
+        {
+            return await _context.Employees.FirstOrDefaultAsync(u => u.Email == email);
         }
 
         public async Task<LoginResponseDTO?> LoginAsync(LoginDTO logindto)
@@ -95,14 +103,48 @@ namespace EmpManage.Repositories
             if (role != null)
             {
                 employee.EmpRoles = new List<EmpRole>
-        {
-            new EmpRole { RoleId = role.Id }
-        };
+                {
+                    new EmpRole { RoleId = role.Id }
+                };
             }
-
             await _context.Employees.AddAsync(employee);
             return employee;
         }
+
+        public async Task<bool> GenerateResetPasswordAsync(Employee employee )
+        {
+            var user = await _context.Employees.FirstOrDefaultAsync(u => u.Email == employee.Email);
+            if (user == null) return false;
+
+            var otp = new Random().Next(100000, 999999).ToString();
+            user.Otp = otp;
+            user.OtpGeneratedAt = DateTime.UtcNow;
+
+            await _emailRepository.SendEmailAsync(user.Email, "Your OTP Code", $"Your OTP is: {otp}");
+
+
+            await _context.SaveChangesAsync(); 
+
+            return true;
+
+        }
+
+        public async Task<bool> ResetPasswordAsync(string email,string otp, string newPassword)
+        {
+            var user = await _context.Employees.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null || user.Otp != otp) return false;
+
+            if (user.OtpGeneratedAt == null || DateTime.UtcNow > user.OtpGeneratedAt.Value.AddMinutes(10))
+                return false; // OTP expired
+
+            user.Password = HashPassword(newPassword); 
+            user.Otp = null;
+            user.OtpGeneratedAt = null;
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
 
         private string CreateJWTToken(Employee employee, List<string> roles)
         {
@@ -139,5 +181,6 @@ namespace EmpManage.Repositories
             var hashBytes = sha256.ComputeHash(bytes);
             return Convert.ToBase64String(hashBytes);
         }
+
     }
 } 

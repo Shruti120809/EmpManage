@@ -1,4 +1,6 @@
-﻿namespace EmpManage.DTOs
+﻿using System.Text.Json.Serialization;
+
+namespace EmpManage.DTOs
 {
     public class EmployeeDTO
     {
@@ -6,6 +8,6 @@
         public string Name { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public List<string>? Roles { get; set; }
-        public List<MenuPermissionDTO>? Menus { get; set; } = new();
+        public List<string>? Menus { get; set; } = new();
     }
 }

@@ -7,10 +7,9 @@ namespace EmpManage.Interfaces
     public interface IEmployeeRepository
     {
         Task<Employee?> GetByIdAsync(int id);
-        Task<IEnumerable<Employee>> GetAllAsync();
+        Task<PaginationDTO<EmployeeDTO>> GetAllAsync(SortingPaginationDTO dto);
         Task UpdateAsync(int id, UpdateDTO updatedto, ClaimsPrincipal user);
-        Task DeleteAsync(int id); // soft delete
-         
+        Task DeleteAsync(int id); // soft delete        
         Task<Employee?> GetByIdAdminAsync(int id);
         Task UpdateByIdAdminAsync(int id, UpdateDTO updatedto);
         Task DeleteByIdAdminAsync(int id);
@@ -20,7 +19,6 @@ namespace EmpManage.Interfaces
 
         Task<List<Role>> GetRolesByIdsAsync(List<int> ids);
         Task<Role?> GetRoleByIdAsync(int id);
-
 
         Task<bool> SaveChangesAsync();
     }

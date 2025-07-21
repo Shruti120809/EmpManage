@@ -4,6 +4,7 @@ using EmpManage.Helper;
 using EmpManage.Interfaces;
 using EmpManage.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 using System.Security.Claims;
 
 namespace EmpManage.Repositories
@@ -32,13 +33,66 @@ namespace EmpManage.Repositories
                 .FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted);
         }
 
-        public async Task<IEnumerable<Employee>> GetAllAsync()
+        public async Task<PaginationDTO<EmployeeDTO>> GetAllAsync(SortingPaginationDTO dto)
         {
-            return await _context.Employees
-                .Include(e => e.EmpRoles).ThenInclude(er => er.Role)
-                .Where(e => !e.IsDeleted)
+            var query = _context.Employees
+                .Include(e => e.EmpRoles)!
+                    .ThenInclude(er => er.Role)!
+                        .ThenInclude(r => r.RoleMenuPermissions)!
+                            .ThenInclude(rmp => rmp.Menu)
+                .AsQueryable();
+
+            // Search
+            if (!string.IsNullOrEmpty(dto.Search))
+            {
+                string lowerSearch = dto.Search.ToLower();
+                query = query.Where(e =>
+                    e.Name.ToLower().Contains(lowerSearch) ||
+                    e.Email.ToLower().Contains(lowerSearch));
+            }
+
+            // Sorting
+            query = dto.Sorting?.ToLower() switch
+            {
+                "name" => dto.IsAsc ? query.OrderBy(e => e.Name) : query.OrderByDescending(e => e.Name),
+                "email" => dto.IsAsc ? query.OrderBy(e => e.Email) : query.OrderByDescending(e => e.Email),
+                _ => query.OrderBy(e => e.Id)
+            };
+
+            int totalCount = await query.CountAsync();
+            int totalPages = (int)Math.Ceiling(totalCount / (double)dto.PageSize);
+
+            var paginatedData = await query
+                .Skip((dto.PageIndex - 1) * dto.PageSize)
+                .Take(dto.PageSize)
                 .ToListAsync();
+
+            var employeeList = paginatedData.Select(e => new EmployeeDTO
+            {
+                Id = e.Id,
+                Name = e.Name,
+                Email = e.Email,
+                Roles = e.EmpRoles?.Select(er => er.Role.Name).ToList() ?? new(),
+                Menus = e.EmpRoles?
+                    .SelectMany(er => er.Role.RoleMenuPermissions!)
+                    .Where(rmp => rmp.Menu != null)
+                    .Select(rmp => rmp.Menu!.Name)
+                    .Distinct()
+                    .ToList() ?? new()
+            }).ToList();
+
+            return new PaginationDTO<EmployeeDTO>
+            {
+                Items = employeeList,
+                PageIndex = dto.PageIndex,
+                PageSize = dto.PageSize,
+                TotalPages = totalPages
+            };
         }
+
+
+
+
 
         public async Task UpdateAsync(int id, UpdateDTO updatedto, ClaimsPrincipal user)
         {
@@ -144,5 +198,7 @@ namespace EmpManage.Repositories
         {
             return await _context.SaveChangesAsync() > 0;
         }
+
+        
     }
 }

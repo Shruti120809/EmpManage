@@ -4,9 +4,6 @@ namespace EmpManage.Models
 {
     public class RoleMenuPermission
     {
-        //[Key]
-        //public int Id { get; set; }
-
         public int RoleId { get; set; }
         public string RoleName { get; set; } = string.Empty;
         public Role? Role { get; set; }

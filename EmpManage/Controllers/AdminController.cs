@@ -2,6 +2,7 @@
 using EmpManage.DTOs;
 using EmpManage.Helper;
 using EmpManage.Interfaces;
+using EmpManage.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -22,26 +23,16 @@ namespace EmpManage.Controllers
             _mapper = mapper;
         }
 
-        [HttpGet("GetAll")]
-        public async Task<ResponseDTO<object>> GetAll()
+        [HttpPost("GetAll")]
+        public async Task<ResponseDTO<PaginationDTO<EmployeeDTO>>> GetAll([FromBody] SortingPaginationDTO dto)
         {
-            var employees = await _unitOfWork.Employee.GetAllAsync();
-
-            if (employees == null || !employees.Any())
-            {
-               return new ResponseDTO<object>(
-                    404,
-                    ResponseHelper.NotFound("User or Role"),
-                    null);
-            }
-
-            var employeeDtos = employees.Select(e => _mapper.Map<EmployeeDTO>(e)).ToList();
-
-            return new ResponseDTO<object>(
+            var result = await _unitOfWork.Employee.GetAllAsync(dto);
+            return new ResponseDTO<PaginationDTO<EmployeeDTO>>(
                 200,
-                ResponseHelper.Success("Fetched", "All Users"),
-                employeeDtos);
+                ResponseHelper.Success("Fetched", "successfully"),
+                result);
         }
+
 
 
         [HttpPost("AssignRoles")]

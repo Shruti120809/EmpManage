@@ -11,16 +11,20 @@ namespace EmpManage.Repositories
         public IAuthRepository Auth { get; }
         public IEmployeeRepository Employee { get; }
         public IAddPermissionRepository AddPermission { get; }
+        public IEmailRepository Email { get; }
 
         public UnitOfWork(AppDbContext context,
                           IAuthRepository authRepository,
                           IEmployeeRepository employeeRepository, 
-                          IAddPermissionRepository addPermissionRepository)
+                          IAddPermissionRepository addPermissionRepository,
+                          IEmailRepository emailRepository)
         {
             _context = context;
             Auth = authRepository;
             Employee = employeeRepository;
-            AddPermission = addPermissionRepository; 
+            AddPermission = addPermissionRepository;
+            Email = emailRepository;
+            
         }
 
         public async Task<int> CompleteAsync()

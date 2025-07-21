@@ -2,6 +2,7 @@
 using EmpManage.DTOs;
 using EmpManage.Helper;
 using EmpManage.Interfaces;
+using EmpManage.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -60,7 +61,7 @@ namespace EmpManage.Controllers
                 new { newUser.Id, newUser.Email });
         }
 
-        [HttpPost("login")]
+        [HttpPost("Login")]
         public async Task<ResponseDTO<object>> Login(LoginDTO logindto)
         {
             var response = await _unitofwork.Auth.LoginAsync(logindto);
@@ -77,5 +78,48 @@ namespace EmpManage.Controllers
                 response);
         }
 
+        [HttpPost("ForgotPassword")]
+        public async Task<ResponseDTO<object>> ForgetPassword(ForgetPasswordDTO dto)
+        {
+            var user = await _unitofwork.Auth.GetUserByEmailAsync(dto.Email);
+            if (user == null)
+                return new ResponseDTO<object>(
+                    404,
+                    ResponseHelper.NotFound("User"),
+                    null);
+
+            var token = await _unitofwork.Auth.GenerateResetPasswordAsync(user);
+            var resetLink = $"http://localhost:5000/reset-password?token={token}";
+
+            await _unitofwork.Email.SendEmailAsync(
+                user.Email,
+                "Password Reset Request",
+                $"<p>Click the link to reset your password:</p><a href='{resetLink}'>{resetLink}</a>"
+            );
+
+            return new ResponseDTO<object>(
+                    200,
+                    ResponseHelper.Success("OTP","Sent"),
+                    null);
+        }
+
+        [HttpPost("ResetPassword")]
+        public async Task<ResponseDTO<object>> ResetPassword(ResetPasswordDTO dto)
+        {
+            var result = await _unitofwork.Auth.ResetPasswordAsync(dto.Email, dto.Otp, dto.Password);
+
+            return result ?
+                new ResponseDTO<object>(
+                    200,
+                    ResponseHelper.Success("Password","Reset"),
+                    null
+                 ) :
+                 new ResponseDTO<object>(
+                     400,
+                     ResponseHelper.BadRequest("OTP"),
+                     null
+                 );
+
+        }
     }
 }
