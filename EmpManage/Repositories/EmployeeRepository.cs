@@ -1,204 +1,213 @@
-﻿using EmpManage.Data;
+﻿using AutoMapper;
+using EmpManage.Data;
 using EmpManage.DTOs;
 using EmpManage.Helper;
 using EmpManage.Interfaces;
 using EmpManage.Models;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Linq;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace EmpManage.Repositories
 {
     public class EmployeeRepository : IEmployeeRepository
     {
         private readonly AppDbContext _context;
+        private readonly IMapper _mapper;
 
-        public EmployeeRepository(AppDbContext context)
+        public EmployeeRepository(AppDbContext context, IMapper mapper)
         {
             _context = context;
-        }
-
-        public async Task<Employee?> GetByEmailAsync(string email)
-        {
-            return await _context.Employees
-                .Include(e => e.EmpRoles)
-                    .ThenInclude(er => er.Role)
-                .FirstOrDefaultAsync(e => e.Email == email);
-        }
-
-        public async Task<Employee?> GetByIdAsync(int id)
-        {
-            return await _context.Employees
-                .Include(e => e.EmpRoles).ThenInclude(er => er.Role)
-                .FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted);
+            _mapper = mapper;
         }
 
         public async Task<PaginationDTO<EmployeeDTO>> GetAllAsync(SortingPaginationDTO dto)
         {
-            var query = _context.Employees
-                .Include(e => e.EmpRoles)!
-                    .ThenInclude(er => er.Role)!
-                        .ThenInclude(r => r.RoleMenuPermissions)!
-                            .ThenInclude(rmp => rmp.Menu)
-                .AsQueryable();
-
-            // Search
-            if (!string.IsNullOrEmpty(dto.Search))
+            var parameters = new[]
             {
-                string lowerSearch = dto.Search.ToLower();
-                query = query.Where(e =>
-                    e.Name.ToLower().Contains(lowerSearch) ||
-                    e.Email.ToLower().Contains(lowerSearch));
-            }
+        new SqlParameter("@Search", dto.Search ?? (object)DBNull.Value),
+        new SqlParameter("@SortBy", dto.SortBy ?? "Name"),
+        new SqlParameter("@IsAscending", dto.IsAscending ? 1 : 0),
+        new SqlParameter("@PageIndex", dto.PageIndex),
+        new SqlParameter("@PageSize", dto.PageSize),
+    };
 
-            // Sorting
-            query = dto.Sorting?.ToLower() switch
-            {
-                "name" => dto.IsAsc ? query.OrderBy(e => e.Name) : query.OrderByDescending(e => e.Name),
-                "email" => dto.IsAsc ? query.OrderBy(e => e.Email) : query.OrderByDescending(e => e.Email),
-                _ => query.OrderBy(e => e.Id)
-            };
-
-            int totalCount = await query.CountAsync();
-            int totalPages = (int)Math.Ceiling(totalCount / (double)dto.PageSize);
-
-            var paginatedData = await query
-                .Skip((dto.PageIndex - 1) * dto.PageSize)
-                .Take(dto.PageSize)
+            var rawResult = await _context.EmployeeDetails
+                .FromSqlRaw("EXEC sp_GetAllEmployeesPaginated @Search, @SortBy, @IsAscending, @PageIndex, @PageSize", parameters)
+                .AsNoTracking()
                 .ToListAsync();
 
-            var employeeList = paginatedData.Select(e => new EmployeeDTO
+            if (rawResult.Count == 0)
             {
-                Id = e.Id,
+                return new PaginationDTO<EmployeeDTO>
+                {
+                    Items = new List<EmployeeDTO>(),
+                    PageIndex = dto.PageIndex,
+                    TotalPages = 0
+                };
+            }
+
+            int totalRecords = rawResult.First().TotalRecords;
+
+            var employeeData = rawResult.Select(e => new EmployeeDTO
+            {
+                Id = e.EmployeeId,
                 Name = e.Name,
                 Email = e.Email,
-                Roles = e.EmpRoles?.Select(er => er.Role.Name).ToList() ?? new(),
-                Menus = e.EmpRoles?
-                    .SelectMany(er => er.Role.RoleMenuPermissions!)
-                    .Where(rmp => rmp.Menu != null)
-                    .Select(rmp => rmp.Menu!.Name)
-                    .Distinct()
-                    .ToList() ?? new()
+                Roles = e.RoleName?.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                     .Select(r => r.Trim())
+                     .Distinct()
+                     .ToList() ?? new(),
+
+                Menus = !string.IsNullOrEmpty(e.MenuJson)
+                    ? JsonSerializer.Deserialize<List<MenuPermissionDTO>>(e.MenuJson, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    }) ?? new List<MenuPermissionDTO>()
+                    : new List<MenuPermissionDTO>()
             }).ToList();
 
             return new PaginationDTO<EmployeeDTO>
             {
-                Items = employeeList,
+                Items = employeeData,
                 PageIndex = dto.PageIndex,
                 PageSize = dto.PageSize,
-                TotalPages = totalPages
+                TotalPages = (int)Math.Ceiling(totalRecords / (double)dto.PageSize)
             };
         }
 
-
-
-
-
-        public async Task UpdateAsync(int id, UpdateDTO updatedto, ClaimsPrincipal user)
+        public async Task<EmployeeDTO?> GetByIdAsync(int id)
         {
-            var employee = await _context.Employees.FindAsync(id);
-            if (employee == null) return;
+            var param = new SqlParameter("@EmployeeId", id);
 
-            var trimmedName = updatedto.Name.Trim();
-            var formattedName = char.ToUpper(trimmedName[0]) + trimmedName.Substring(1).ToLower();
+            var result = await _context.EmployeeDetailsSam
+                .FromSqlRaw("EXEC sp_GetEmployeeById @EmployeeId", param)
+                .AsNoTracking()
+                .ToListAsync();
 
-            employee.Name = formattedName;
-            employee.Email = updatedto.Email.Trim().ToLower();
+            if (!result.Any())
+                return null;
 
-            employee.UpdatedBy = UserClaimsHelper.GetCurrentUserName(user);
-            employee.UpdatedAt = DateTime.UtcNow;
+            var first = result.First();
 
-            _context.Employees.Update(employee);
-        }
-
-
-        public async Task DeleteAsync(int id)
-        {
-            var employee = await _context.Employees.FindAsync(id);
-            if (employee != null && !employee.IsDeleted)
+            var employeeDTO = result.Select(e => new EmployeeDTO
             {
-                employee.IsDeleted = true;
-                employee.UpdatedAt = DateTime.UtcNow;
-                employee.UpdatedBy = "System";
-                await _context.SaveChangesAsync();
-            }
+                Id = first.Id,
+                Name = first.Name,
+                Email = first.Email,
+                Roles = first.Roles?.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(r => r.Trim()).ToList() ?? new(),
+                Menus = !string.IsNullOrEmpty(first.MenuJson)
+                    ? JsonSerializer.Deserialize<List<MenuPermissionDTO>>(first.MenuJson ?? "[]")
+                    : new List<MenuPermissionDTO>()
+
+
+            }).FirstOrDefault();
+
+            return (EmployeeDTO?)employeeDTO;
         }
 
-        public async Task<Employee?> GetByIdAdminAsync(int id)
+        public async Task<UpdateDTO> UpdateByIdAdminAsync(int id, UpdateDTO updatedto)
         {
-            return await _context.Employees
-                .Include(e => e.EmpRoles).ThenInclude(er => er.Role)
-                .FirstOrDefaultAsync(e => e.Id == id);
-        }
-
-        public async Task UpdateByIdAdminAsync(int id, UpdateDTO updatedto)
-        {
-            var employee = await _context.Employees.FindAsync(id);
-            if (employee != null)
+            var parameters = new[]
             {
-                employee.Name = updatedto.Name;
-                employee.Email = updatedto.Email;
-                employee.UpdatedAt = DateTime.UtcNow;
-                employee.UpdatedBy = "Admin";
-                await _context.SaveChangesAsync();
-            }
+                new SqlParameter("@Id", id),
+                new SqlParameter("@Name", updatedto.Name),
+                new SqlParameter("@Email", updatedto.Email),
+                new SqlParameter("@UpdatedBy", "Admin"),
+                new SqlParameter("@UpdatedAt", DateTime.UtcNow)
+            };
+
+            var rowsAffected = await _context.Database.ExecuteSqlRawAsync(
+                "EXEC sp_UpdateEmployeeById @Id, @Name, @Email, @UpdatedBy, @UpdatedAt", parameters);
+
+            return updatedto;
         }
 
-        public async Task DeleteByIdAdminAsync(int id)
+
+        public async Task<bool> UpdateAsync(int id, UpdateDTO updatedto, ClaimsPrincipal user)
         {
-            var employee = await _context.Employees.FindAsync(id);
-            if (employee != null)
+            var parameters = new[]
             {
-                employee.IsDeleted = true;
-                employee.UpdatedAt = DateTime.UtcNow;
-                employee.UpdatedBy = "Admin";
-                await _context.SaveChangesAsync();
-            }
+                new SqlParameter("@Id", id),
+                new SqlParameter("@Name", updatedto.Name),
+                new SqlParameter("@Email", updatedto.Email),
+                new SqlParameter("@UpdatedBy", UserClaimsHelper.GetCurrentUserName(user) ?? "Unknown"),
+                new SqlParameter("@UpdatedAt", DateTime.UtcNow)
+            };
+
+            var rowsAffected = await _context.Database.ExecuteSqlRawAsync(
+                "EXEC sp_UpdateEmployeeById @Id, @Name, @Email, @UpdatedBy, @UpdatedAt", parameters);
+
+            return rowsAffected > 0;
         }
 
-        public async Task AssignRoleAsync(AssignRoleDTO assignrole)
+        public async Task<DeleteDTO> DeleteAsync(int id)
+        {
+            var employee = await _context.Employees.FirstOrDefaultAsync(e => e.Id == id);
+            if (employee == null)
+                return null;
+            var updateat = DateTime.UtcNow;
+
+            var parameters = new[]
+            {
+                new SqlParameter("@Id", id),
+                new SqlParameter("@UpdatedBy", "Admin"),
+                new SqlParameter("@UpdatedAt", DateTime.UtcNow)
+            };
+
+            var affectedRows = await _context.Database.ExecuteSqlRawAsync(
+                "EXEC sp_DeleteEmployee @Id, @UpdatedBy, @UpdatedAt", parameters);
+
+            if (affectedRows == 0)
+                return null;
+
+            var deletedto = _mapper.Map<DeleteDTO>(employee);
+            deletedto.UpdatedBy = "Admin";
+            deletedto.UpdatedAt = updateat.ToString("yyyy-MM-dd HH:mm:ss");
+
+            return deletedto;
+        }
+
+        public async Task<AssignRoleDTO> AssignRoleAsync(AssignRoleDTO assignrole)
         {
             foreach (var roleId in assignrole.RoleId)
             {
-                var alreadyAssigned = await _context.EmpRoles
-                    .AnyAsync(er => er.EmployeeId == assignrole.EmployeeId && er.RoleId == roleId);
-
-                if (!alreadyAssigned)
+                var parameters = new[]
                 {
-                    _context.EmpRoles.Add(new EmpRole
-                    {
-                        EmployeeId = assignrole.EmployeeId,
-                        RoleId = roleId
-                    });
-                }
+                    new SqlParameter("@EmpId", assignrole.EmployeeId),
+                    new SqlParameter("@RoleId", roleId)
+                };
+
+                await _context.Database.ExecuteSqlRawAsync("EXEC sp_AssignRole @EmpId, @RoleId", parameters);
             }
-            await _context.SaveChangesAsync();
+
+            return assignrole;
         }
 
-        public async Task RemoveRoleAsync(RemoveRoleDTO dto)
+        public async Task<RemoveRoleDTO> RemoveRoleAsync(RemoveRoleDTO dto)
         {
-            var roleAssignments = _context.EmpRoles
-                .Where(er => er.EmployeeId == dto.EmployeeId && dto.RoleIds.Contains(er.RoleId));
+            foreach (var roleId in dto.RoleIds)
+            {
+                var parameters = new[]
+                {
+                    new SqlParameter("@EmpId", dto.EmployeeId),
+                    new SqlParameter("@RoleId", roleId)
+                };
 
-            _context.EmpRoles.RemoveRange(roleAssignments);
-            await _context.SaveChangesAsync();
+                await _context.Database.ExecuteSqlRawAsync("EXEC sp_RemoveRole @EmpId, @RoleId", parameters);
+            }
+
+            return dto;
         }
 
-        public async Task<List<Role>> GetRolesByIdsAsync(List<int> ids)
-        {
-            return await _context.Roles.Where(r => ids.Contains(r.Id)).ToListAsync();
-        }
-
-        public async Task<Role?> GetRoleByIdAsync(int id)
-        {
-            return await _context.Roles.FindAsync(id);
-        }
-
-        public async Task<bool> SaveChangesAsync()
-        {
-            return await _context.SaveChangesAsync() > 0;
-        }
-
-        
+        public Task<Employee?> GetByIdAdminAsync(int id) => throw new NotImplementedException();
+        public Task<Role?> GetRoleByIdAsync(int id) => throw new NotImplementedException();
+        public Task<List<Role>> GetRolesByIdsAsync(List<int> ids) => throw new NotImplementedException();
+        public Task<bool> SaveChangesAsync() => throw new NotImplementedException();
     }
 }
+
+

@@ -2,9 +2,11 @@
 using EmpManage.DTOs;
 using EmpManage.Helper;
 using EmpManage.Interfaces;
+using EmpManage.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+
 
 namespace EmpManage.Controllers
 {
@@ -22,6 +24,51 @@ namespace EmpManage.Controllers
             _mapper = mapper;
         }
 
+        [HttpGet("Profile")]
+        public async Task<ResponseDTO<EmployeeDTO>> GetProfile()
+        {
+            var empId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            var result = await _unitofwork.Employee.GetByIdAsync(empId);
+
+            if (result == null)
+                return new ResponseDTO<EmployeeDTO>(
+                    404, 
+                    ResponseHelper.NotFound("Employee"), 
+                    null);
+
+            return new ResponseDTO<EmployeeDTO>(
+                200,
+                ResponseHelper.Success("Profile","Fetched"), 
+                result);
+        }
+
+        [HttpPut("UpdateProfile")]
+        public async Task<ResponseDTO<UpdateDTO>> UpdateProfile([FromBody] UpdateDTO dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return new ResponseDTO<UpdateDTO>(
+                    400,
+                    ResponseHelper.ValidationError(ModelState),
+                    dto);
+            }
+
+            int empId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            await _unitofwork.Employee.UpdateAsync(empId, dto, User);
+
+            return new ResponseDTO<UpdateDTO>(
+                200,
+                ResponseHelper.Success("updated", "Profile"),
+                dto
+            );
+        }
+
+
+
+        #region Linq
+        /*
         [HttpGet("GetData")]
         public async Task<ResponseDTO<object>> GetProfile()
         {
@@ -88,5 +135,7 @@ namespace EmpManage.Controllers
         //        ResponseHelper.Deleted("User", empId),
         //        null));
         //}
+        */
+        #endregion 
     }
 }

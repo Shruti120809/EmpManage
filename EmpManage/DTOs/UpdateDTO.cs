@@ -12,5 +12,6 @@ namespace EmpManage.DTOs
         [Required(ErrorMessage = "Email is required.")]
         [RegularExpression(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", ErrorMessage = "Enter a valid email address.")]
         public string Email { get; set; } = string.Empty;
+
     }
 }

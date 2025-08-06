@@ -4,16 +4,14 @@ using EmpManage.DTOs;
 using EmpManage.Helper;
 using EmpManage.Interfaces;
 using EmpManage.Models;
-using Microsoft.AspNetCore.Authentication.OAuth.Claims;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using System.Web.Helpers;
 
 namespace EmpManage.Repositories
 {
@@ -56,7 +54,10 @@ namespace EmpManage.Repositories
                 return null;
 
             var roleIds = user.EmpRoles!.Select(r => r.RoleId).ToList();
-            var roleNames = user.EmpRoles!.Select(r => r.Role!.Name).ToList();
+            var roleNames = user.EmpRoles?
+                .Where(r => r.Role != null)
+                .Select(r => r.Role.Name)
+                .ToList() ?? new List<string>();
 
             var rolePermissions = await _context.RoleMenuPermission
                 .Where(rmp => roleIds.Contains(rmp.RoleId))
@@ -68,7 +69,7 @@ namespace EmpManage.Repositories
                 {
                     MenuId = group.Key.MenuId,
                     MenuName = group.Key.MenuName,
-                    Permissions = group.Select(p => p.PermissionName).Distinct().ToList()
+                    //Permissions = group.Select(p => p.PermissionName).Distinct().ToList()
                 }).ToList();
 
             var token = CreateJWTToken(user, roleNames);
@@ -93,57 +94,94 @@ namespace EmpManage.Repositories
             var trimmedName = dto.Name.Trim();
 
             var employee = _mapper.Map<Employee>(dto);
-
             employee.Name = char.ToUpper(trimmedName[0]) + trimmedName.Substring(1).ToLower();
             employee.Password = HashPassword(dto.Password);
             employee.CreatedAt = DateTime.UtcNow;
-            employee.CreatedBy = "Self";
+
+            string createdBy;
+            if (user != null)
+            {
+                var roles = user.Claims
+                    .Where(c => c.Type == ClaimTypes.Role)
+                    .Select(c => c.Value)
+                    .ToList();
+
+                createdBy = roles.Contains("Admin") ? "Admin" : "Self";
+            }
+            else
+            {
+                createdBy = "Self";
+            }
+
+            await _context.Database.ExecuteSqlRawAsync(
+                "EXEC sp_CreateEmployee @Name, @Email, @Password, @CreatedBy",
+                new SqlParameter("@Name", employee.Name),
+                new SqlParameter("@Email", employee.Email),
+                new SqlParameter("@Password", employee.Password),
+                new SqlParameter("@CreatedBy", createdBy)
+            );
+
+            employee = await _context.Employees.FirstOrDefaultAsync(e => e.Email == email);
+            if (employee == null) return null;
 
             var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "User");
             if (role != null)
             {
                 employee.EmpRoles = new List<EmpRole>
                 {
-                    new EmpRole { RoleId = role.Id }
+                    new EmpRole { EmployeeId = employee.Id, RoleId = role.Id }
                 };
+                await _context.SaveChangesAsync();
             }
-            await _context.Employees.AddAsync(employee);
+
             return employee;
         }
 
-        public async Task<bool> GenerateResetPasswordAsync(Employee employee )
+        public async Task<bool> GenerateResetPasswordAsync(Employee employee)
         {
             var user = await _context.Employees.FirstOrDefaultAsync(u => u.Email == employee.Email);
             if (user == null) return false;
 
-            var otp = new Random().Next(100000, 999999).ToString();
+            var otp = new Random().Next(100000, 999999).ToString(); // 6-digit OTP
             user.Otp = otp;
             user.OtpGeneratedAt = DateTime.UtcNow;
 
             await _emailRepository.SendEmailAsync(user.Email, "Your OTP Code", $"Your OTP is: {otp}");
-
-
-            await _context.SaveChangesAsync(); 
-
-            return true;
-
-        }
-
-        public async Task<bool> ResetPasswordAsync(string email,string otp, string newPassword)
-        {
-            var user = await _context.Employees.FirstOrDefaultAsync(u => u.Email == email);
-            if (user == null || user.Otp != otp) return false;
-
-            if (user.OtpGeneratedAt == null || DateTime.UtcNow > user.OtpGeneratedAt.Value.AddMinutes(10))
-                return false; // OTP expired
-
-            user.Password = HashPassword(newPassword); 
-            user.Otp = null;
-            user.OtpGeneratedAt = null;
-
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<Employee> VerifyOtpAsync(string email, string otp)
+        {
+            var user = await _context.Employees.FirstOrDefaultAsync(e => e.Email == email);
+            if (user == null) return null;
+
+            if (user.Otp != otp) return null;
+
+            if (!user.OtpGeneratedAt.HasValue || user.OtpGeneratedAt.Value.AddMinutes(10) < DateTime.UtcNow)
+                return null;
+
+            return user;
+        }
+        public async Task<bool> ResetPasswordAsync(string email, string newPassword)
+        {
+            var user = await _context.Employees.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null) return false;
+
+            var newPasswordHash = HashPassword(newPassword);
+
+            if (user.Password == newPasswordHash)
+            {
+                // Same password — don’t allow reset
+                return false;
+            }
+
+            user.Password = newPasswordHash;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+
 
 
         private string CreateJWTToken(Employee employee, List<string> roles)
@@ -169,7 +207,7 @@ namespace EmpManage.Repositories
                 claims: claims,
                 expires: DateTime.Now.AddHours(1),
                 signingCredentials: creds
-                );
+            );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
@@ -181,6 +219,5 @@ namespace EmpManage.Repositories
             var hashBytes = sha256.ComputeHash(bytes);
             return Convert.ToBase64String(hashBytes);
         }
-
     }
-} 
+}

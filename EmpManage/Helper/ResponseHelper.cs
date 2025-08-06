@@ -1,44 +1,46 @@
-﻿namespace EmpManage.Helper
+﻿using Microsoft.AspNetCore.Mvc.ModelBinding;
+
+namespace EmpManage.Helper
 {
     public static class ResponseHelper
     {
-        public static string LoggedIn(string entity) =>
-            $"{entity} logged in successfully.";
+        public static string Success(string action, string entity)
+            => $"{entity} {action} successfully.";
 
-        public static string Success(string action, string entity) =>
-            $"{entity} {action} sucessfully";
+        public static string LoggedIn(string enitity)
+            => $"{enitity} logged in Successfully";
+        public static string NotFound(string entity)
+            => $"{entity} not found.";
 
-        public static string BadRequest(string action) =>
-            $"{action} is invalid or expired";
+        public static string Invalid(string entity)
+            => $"Invalid {entity}.";
 
-        public static string Updated(string entity, object id) =>
-            $"{entity} with ID {id} was updated successfully.";
+        public static string Mismatch(string entity)
+            => $"{entity} do not match.";
 
-        public static string Deleted(string entity, object id) =>
-            $"{entity} with ID {id} was deleted successfully.";
+        public static string BadRequest(string field)
+            => $"Please provide a valid {field}.";
 
-        public static string Assigned(string item, object from, object to) =>
-            $"{item} '{from}' was assigned to '{to}'.";
+        public static string Exists(string entity)
+            => $"{entity} already exists.";
 
-        public static string Removed(string item, object from, object to) =>
-            $"{item} '{from}' was removed from '{to}'.";
+        public static string Removed(string entity, string from, string to)
+            => $"{entity} {to} removed from {from}";
 
-        public static string NotFound(string entity) =>
-            $"{entity} not found.";
+        public static string PermissionAssigned(int menu, int role)
+            => $"Pemission of {menu} given to {role}";
 
-        public static string AlreadyExists(string entity) =>
-            $"{entity} already exists.";
+        public static string InternalError(string entity)
+            => $"Something went wrong while processing {entity}.";
 
-        public static string Retrieved(string entity, object id) =>
-            $"{entity} with ID {id} retrieved successfully.";
+        public static string ValidationError(ModelStateDictionary modelState)
+        {
+            var errors = modelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
+            return "Validation failed: " + string.Join(", ", errors);
+        }
 
-        public static string Fetched(string entity) =>
-            $"{entity} fetched successfully.";
-
-        public static string Unauthorized() =>
-            "You are not authorized to access this resource.";
-
-        public static string Forbidden() =>
-            "You do not have permission to perform this action.";
+        public static string Unauthorized()
+            => $"Invalid Credentials";
     }
+
 }

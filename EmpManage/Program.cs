@@ -1,4 +1,4 @@
-﻿using EmpManage.Data;
+﻿    using EmpManage.Data;
 using EmpManage.Extensions;
 using EmpManage.Interfaces;
 using EmpManage.Repositories;
@@ -80,6 +80,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+//Add CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend",
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+        });
+});
+
 var app = builder.Build();
 
 // Seed Admin user (optional if Seeder exists)
@@ -94,6 +106,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseCors("AllowFrontend");
 // Add Auth middleware
 app.UseAuthentication();
 app.UseAuthorization();

@@ -11,7 +11,9 @@ namespace EmpManage.Interfaces
 
         Task<Employee> RegisterAsync(RegisterDTO registerdto, ClaimsPrincipal user);
         Task<LoginResponseDTO> LoginAsync(LoginDTO logindto);
+
         Task<bool> GenerateResetPasswordAsync(Employee employee);
-        Task<bool> ResetPasswordAsync(string email, string otp, string newPassword);
+        Task<Employee> VerifyOtpAsync(string email, string otp);
+        Task<bool> ResetPasswordAsync(string email, string newPassword);
     }
 }

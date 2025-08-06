@@ -52,19 +52,19 @@ namespace EmpManage.Data
             if (!context.Menus.Any())
             {
                 context.Menus.AddRange(
-                    new Menu { Name = "Assign Role", Route = "/assign-role", Section = "Admin", Icon = "🛡️", Order = 1 },
-                    new Menu { Name = "Revoke Role", Route = "/revoke-role", Section = "Admin", Icon = "❌", Order = 2 },
-                    new Menu { Name = "Manage Roles", Route = "/manage-role", Section = "Admin", Icon = "🏷️", Order = 3 },
-                    new Menu { Name = "Add Permission", Route = "/add-permission", Section = "Permissions", Icon = "➕", Order = 1 },
-                    new Menu { Name = "View Permissions", Route = "/view-permission", Section = "Permissions", Icon = "📜", Order = 2 },
-                    new Menu { Name = "Add Employee", Route = "/add-employee", Section = "Employees", Icon = "➕", Order = 1 },
-                    new Menu { Name = "View Employees", Route = "/view-employees", Section = "Employees", Icon = "👀", Order = 2 },
-                    new Menu { Name = "Edit Employee", Route = "/edit-employee", Section = "Employees", Icon = "✏️", Order = 3 },
-                    new Menu { Name = "Delete Employee", Route = "/delete-employee", Section = "Employees", Icon = "❌", Order = 4 },
-                    new Menu { Name = "View Logs", Route = "/view-logs", Section = "Reports & Logs", Icon = "📂", Order = 1 },
-                    new Menu { Name = "Access Reports", Route = "/access-reports", Section = "Reports & Logs", Icon = "📈", Order = 2 },
-                    new Menu { Name = "Profile", Route = "/profile", Section = "Settings", Icon = "👤", Order = 1 },
-                    new Menu { Name = "Logout", Route = "/logout", Section = "Settings", Icon = "🚪", Order = 2 }
+                    new Menu { Name = "Assign Role", Route = "/assign-role", Section = "Admin", Icon = "🛡️", InOrder = 1 },
+                    new Menu { Name = "Revoke Role", Route = "/revoke-role", Section = "Admin", Icon = "❌", InOrder = 2 },
+                    new Menu { Name = "Manage Roles", Route = "/manage-role", Section = "Admin", Icon = "🏷️", InOrder = 3 },
+                    new Menu { Name = "Add Permission", Route = "/add-permission", Section = "Permissions", Icon = "➕", InOrder = 1 },
+                    new Menu { Name = "View Permissions", Route = "/view-permission", Section = "Permissions", Icon = "📜", InOrder = 2 },
+                    new Menu { Name = "Add Employee", Route = "/add-employee", Section = "Employees", Icon = "➕", InOrder = 1 },
+                    new Menu { Name = "View Employees", Route = "/view-employees", Section = "Employees", Icon = "👀", InOrder = 2 },
+                    new Menu { Name = "Edit Employee", Route = "/edit-employee", Section = "Employees", Icon = "✏️", InOrder = 3 },
+                    new Menu { Name = "Delete Employee", Route = "/delete-employee", Section = "Employees", Icon = "❌", InOrder = 4 },
+                    new Menu { Name = "View Logs", Route = "/view-logs", Section = "Reports & Logs", Icon = "📂", InOrder = 1 },
+                    new Menu { Name = "Access Reports", Route = "/access-reports", Section = "Reports & Logs", Icon = "📈", InOrder = 2 },
+                    new Menu { Name = "Profile", Route = "/profile", Section = "Settings", Icon = "👤", InOrder = 1 },
+                    new Menu { Name = "Logout", Route = "/logout", Section = "Settings", Icon = "🚪", InOrder = 2 }
                 );
                 context.SaveChanges();
             }

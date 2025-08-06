@@ -21,6 +21,12 @@ namespace EmpManage.Helper
                         .Distinct()
                         .ToList()));
 
+            CreateMap<Employee, DeleteDTO>()
+                .ForMember(dest => dest.UpdatedAt, opt =>
+                    opt.MapFrom(src => src.UpdatedAt.HasValue
+                        ? src.UpdatedAt.Value.ToString("yyyy-MM-dd HH:mm:ss")
+                        : null));
+
             CreateMap<RegisterDTO, Employee>()
                 .ForMember(dest => dest.Name, opt => opt.Ignore())
                 .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email.Trim().ToLower()))

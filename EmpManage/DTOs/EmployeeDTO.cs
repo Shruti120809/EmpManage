@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using EmpManage.Models;
+using System.Text.Json.Serialization;
 
 namespace EmpManage.DTOs
 {
@@ -8,6 +9,8 @@ namespace EmpManage.DTOs
         public string Name { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public List<string>? Roles { get; set; }
-        public List<string>? Menus { get; set; } = new();
+        public List<MenuPermissionDTO> Menus { get; set; } = new();
+        public List<Permission> Permissions { get; set; } = new();
+
     }
 }

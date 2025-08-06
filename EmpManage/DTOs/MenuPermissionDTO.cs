@@ -4,6 +4,11 @@
     {
         public int MenuId { get; set; }
         public string MenuName { get; set; } = string.Empty;
-        public List<string> Permissions { get; set; } = new();
+        public List<PermissionDTO> Permissions { get; set; } = new();
+    }
+
+    public class PermissionDTO
+    {
+        public string Name { get; set; } = string.Empty;
     }
 }

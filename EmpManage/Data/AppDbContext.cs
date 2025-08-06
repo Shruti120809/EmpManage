@@ -12,6 +12,8 @@ namespace EmpManage.Data
         public DbSet<Permission> Permissions { get; set; }
         public DbSet<Menu> Menus { get; set; }
         public DbSet<RoleMenuPermission> RoleMenuPermission { get; set; }
+        public DbSet<EmployeeDetails> EmployeeDetails { get; set; }
+        public DbSet<EmployeeDetailsSam> EmployeeDetailsSam { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -27,6 +29,8 @@ namespace EmpManage.Data
 
             //soft-delete filter
             modelBuilder.Entity<Employee>().HasQueryFilter(e => !e.IsDeleted);
+
+            modelBuilder.Entity<EmployeeDetailsSam>().HasNoKey().ToView(null);
 
 
         }

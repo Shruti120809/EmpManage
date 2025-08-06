@@ -2,14 +2,20 @@
 using EmpManage.DTOs;
 using EmpManage.Helper;
 using EmpManage.Interfaces;
+using EmpManage.Models;
 using EmpManage.Repositories;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+
 
 namespace EmpManage.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    
     public class AuthController : ControllerBase
     {
         private readonly IUnitOfWork _unitofwork;
@@ -18,108 +24,157 @@ namespace EmpManage.Controllers
             _unitofwork = unitOfwork;
         }
 
+        //URL: https://localhost:7212/api/Auth/Register
         [HttpPost("Register")]
-        public async Task<ResponseDTO<object>> Register([FromBody] RegisterDTO dto)
+        public async Task<ResponseDTO<Employee>> Register([FromBody] RegisterDTO dto)
         {
             if (!ModelState.IsValid)
             {
-                var errors = ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage)
-                    .ToList();
-
-                return new ResponseDTO<object>(
+                return new ResponseDTO<Employee>(
                     400,
-                    "Validation Failed",
-                    errors);
+                    ResponseHelper.ValidationError(ModelState),
+                    null);
             }
-
-            var Name = dto.Name;
-            if ( Name == null || Name == "" || Name.All(char.IsWhiteSpace) || Name != Name.Trim())
-                {
-                    return new ResponseDTO<object>(
-                        400,
-                        "Validation Failed",
-                        new List<string> { "Name cannot be empty, contain only spaces, or start/end with spaces." });
-                }
-
-            var email = dto.Email.Trim().ToLower();
-
+            var name = dto.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return new ResponseDTO<Employee>(
+                    400,
+                    ResponseHelper.BadRequest("Name field"),
+                    null);
+            }
+            var email = dto.Email?.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return new ResponseDTO<Employee>(
+                    400,
+                    ResponseHelper.BadRequest("Email field"),
+                    null);
+            }
             if (await _unitofwork.Auth.UserExists(email))
             {
-                return new ResponseDTO<object>(
+                return new ResponseDTO<Employee>(
                     409,
-                    "Email already exists.",
+                    ResponseHelper.Exists("User"),
                     null);
             }
             var newUser = await _unitofwork.Auth.RegisterAsync(dto, User);
+            if (newUser == null)
+            {
+                return new ResponseDTO<Employee>(
+                    500,
+                    ResponseHelper.InternalError("User"),
+                    null);
+            }
             await _unitofwork.CompleteAsync();
-
-            return new ResponseDTO<object>(
+            return new ResponseDTO<Employee>(
                 200,
-                "User registered successfully.",
-                new { newUser.Id, newUser.Email });
+                ResponseHelper.Success("registered", "User"),
+                newUser);
         }
 
+        //URL: https://localhost:7212/api/Auth/Login
         [HttpPost("Login")]
-        public async Task<ResponseDTO<object>> Login(LoginDTO logindto)
+        public async Task<ResponseDTO<LoginResponseDTO>> Login(LoginDTO logindto)
         {
             var response = await _unitofwork.Auth.LoginAsync(logindto);
 
             if (response == null)
-                return new ResponseDTO<object>(
+                return new ResponseDTO<LoginResponseDTO>(
                     401,
                     ResponseHelper.Unauthorized(),
                     null);
 
-            return new ResponseDTO<object>(
+            return new ResponseDTO<LoginResponseDTO>(
                 200,
                 ResponseHelper.LoggedIn("User"),
                 response);
         }
 
+        //URL: https://localhost:7212/api/Auth/ForgotPassword
         [HttpPost("ForgotPassword")]
-        public async Task<ResponseDTO<object>> ForgetPassword(ForgetPasswordDTO dto)
+        public async Task<ResponseDTO<bool>> ForgotPassword([FromBody] ForgetPasswordDTO dto)
         {
-            var user = await _unitofwork.Auth.GetUserByEmailAsync(dto.Email);
-            if (user == null)
-                return new ResponseDTO<object>(
+            var success = await _unitofwork.Auth.GenerateResetPasswordAsync(new Employee { Email = dto.Email });
+            if (!success)
+            {
+                return new ResponseDTO<bool>(
                     404,
                     ResponseHelper.NotFound("User"),
+                    false);
+            }
+            return new ResponseDTO<bool>(
+                200,
+                ResponseHelper.Success("sent", "OTP"),
+                true);
+        }
+
+        [HttpPost("VerifyOtp")]
+        public async Task<ResponseDTO<Employee>> VerifyOtp([FromBody] VerifyOtpDTO dto)
+        {
+            var employee = await _unitofwork.Auth.VerifyOtpAsync(dto.Email, dto.Otp);
+            if (employee == null)
+            {
+                return new ResponseDTO<Employee>(
+                    400,
+                    ResponseHelper.Invalid("OTP or OTP expired"),
                     null);
-
-            var token = await _unitofwork.Auth.GenerateResetPasswordAsync(user);
-            var resetLink = $"http://localhost:5000/reset-password?token={token}";
-
-            await _unitofwork.Email.SendEmailAsync(
-                user.Email,
-                "Password Reset Request",
-                $"<p>Click the link to reset your password:</p><a href='{resetLink}'>{resetLink}</a>"
-            );
-
-            return new ResponseDTO<object>(
-                    200,
-                    ResponseHelper.Success("OTP","Sent"),
-                    null);
+            }
+            return new ResponseDTO<Employee>(
+                200,
+                ResponseHelper.Success("verified", "OTP"),
+                employee);
         }
 
         [HttpPost("ResetPassword")]
-        public async Task<ResponseDTO<object>> ResetPassword(ResetPasswordDTO dto)
+        public async Task<ResponseDTO<bool>> ResetPassword([FromBody] ResetPasswordDTO dto)
         {
-            var result = await _unitofwork.Auth.ResetPasswordAsync(dto.Email, dto.Otp, dto.Password);
+            if (dto.NewPassword != dto.ConfirmPassword)
+            {
+                return new ResponseDTO<bool>(
+                    400,
+                    ResponseHelper.Mismatch("Passwords"),
+                    false);
+            }
 
-            return result ?
-                new ResponseDTO<object>(
-                    200,
-                    ResponseHelper.Success("Password","Reset"),
-                    null
-                 ) :
-                 new ResponseDTO<object>(
-                     400,
-                     ResponseHelper.BadRequest("OTP"),
-                     null
-                 );
+            var user = await _unitofwork.Auth.GetUserByEmailAsync(dto.Email);
+            if (user == null)
+            {
+                return new ResponseDTO<bool>(
+                    404,
+                    ResponseHelper.NotFound("User"),
+                    false);
+            }
+
+            // Hash new password to compare with old one
+            using var hmac = new HMACSHA512();
+            var newPasswordHash = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(dto.NewPassword)));
+
+            if (user.Password == newPasswordHash)
+            {
+                return new ResponseDTO<bool>(
+                    400,
+                    "New password cannot be same as the old password.",
+                    false);
+            }
+
+            // Proceed to update password
+            var success = await _unitofwork.Auth.ResetPasswordAsync(dto.Email, dto.NewPassword);
+            if (!success)
+            {
+                return new ResponseDTO<bool>(
+                    500,
+                    "Something went wrong while resetting the password.",
+                    false);
+            }
+
+            return new ResponseDTO<bool>(
+                200,
+                ResponseHelper.Success("reset", "Password"),
+                true);
 
         }
+
+
     }
 }

@@ -1,4 +1,5 @@
-﻿using EmpManage.Interfaces;
+﻿using EmpManage.Helper;
+using EmpManage.Interfaces;
 using EmpManage.Repositories;
 
 namespace EmpManage.Extensions
@@ -10,7 +11,9 @@ namespace EmpManage.Extensions
             services.AddScoped<IAuthRepository, AuthRepository>();
             services.AddScoped<IEmployeeRepository, EmployeeRepository>();
             services.AddScoped<IAddPermissionRepository, AddPermissionRepository>();
+            services.AddScoped<IMenuRepository, MenuRepository>();
             services.AddScoped<IEmailRepository, EmailRepository>();
+            services.AddScoped<StoredProcedureHelper>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             return services;

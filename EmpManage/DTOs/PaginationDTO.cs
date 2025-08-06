@@ -7,7 +7,7 @@
         public int PageSize { get; set; }
         public int TotalPages { get; set; }
         public bool HadPrev => PageIndex > 1;
-        public bool HadNext => PageIndex < TotalPages;
+        public bool HadNext => PageIndex  < TotalPages;
 
         public PaginationDTO() { }
 
