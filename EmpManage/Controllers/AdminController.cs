@@ -136,6 +136,16 @@ namespace EmpManage.Controllers
                 dto);
         }
 
+        [HttpGet("GetAllRoles")]
+        public async Task<ResponseDTO<List<RoleDTO>>> GetAllRoles()
+        {
+            var roles = await _unitOfWork.Employee.GetAllRoleAsync();
+
+            return new ResponseDTO<List<RoleDTO>>(
+                200,
+                ResponseHelper.Success("roles", "Get all"),
+                roles);
+        }
 
         #region Linq
         /*

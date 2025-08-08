@@ -20,6 +20,7 @@ namespace EmpManage.Models
         public string? Otp { get; set; }
         public DateTime? OtpGeneratedAt { get; set; }
 
+
         public ICollection<EmpRole>? EmpRoles { get; set; }
     }
 }

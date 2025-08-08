@@ -4,6 +4,7 @@ using EmpManage.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EmpManage.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250806091117_addcol")]
+    partial class addcol
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -72,8 +75,8 @@ namespace EmpManage.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<Guid?>("ResetToken")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<string>("ResetToken")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("ResetTokenGeneratedAt")
                         .HasColumnType("datetime2");
@@ -200,7 +203,7 @@ namespace EmpManage.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("PermissionNames")
+                    b.Property<string>("PermissionName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 

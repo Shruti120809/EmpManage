@@ -203,7 +203,23 @@ namespace EmpManage.Repositories
             return dto;
         }
 
-        public Task<Employee?> GetByIdAdminAsync(int id) => throw new NotImplementedException();
+        public async Task<List<RoleDTO>> GetAllRoleAsync()
+        {
+            var result = await _context.Roles
+                .FromSqlRaw("EXEC sp_GetAllRoles")
+                .AsNoTracking()
+                .ToListAsync();
+
+            var roledto = result.Select(r => new RoleDTO
+            {
+                Id = r.Id,
+                Name = r.Name
+            }).ToList();
+
+            return roledto;
+        }
+
+
         public Task<Role?> GetRoleByIdAsync(int id) => throw new NotImplementedException();
         public Task<List<Role>> GetRolesByIdsAsync(List<int> ids) => throw new NotImplementedException();
         public Task<bool> SaveChangesAsync() => throw new NotImplementedException();

@@ -6,9 +6,11 @@ using EmpManage.Models;
 using EmpManage.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Mail;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 
 
 namespace EmpManage.Controllers
@@ -91,10 +93,32 @@ namespace EmpManage.Controllers
                 response);
         }
 
+        private bool IsValidEmail(string email)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(email))
+                    return false;
+
+                // Clean hidden characters
+                email = email.Trim();                            
+                email = Regex.Replace(email, @"\s+", "");       
+                var addr = new MailAddress(email);
+                return addr.Address == email;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+
+
         //URL: https://localhost:7212/api/Auth/ForgotPassword
         [HttpPost("ForgotPassword")]
         public async Task<ResponseDTO<bool>> ForgotPassword([FromBody] ForgetPasswordDTO dto)
         {
+
             var success = await _unitofwork.Auth.GenerateResetPasswordAsync(new Employee { Email = dto.Email });
             if (!success)
             {
@@ -103,27 +127,35 @@ namespace EmpManage.Controllers
                     ResponseHelper.NotFound("User"),
                     false);
             }
+            if (!IsValidEmail(dto.Email))
+                return new ResponseDTO<bool>(
+                    400,
+                    ResponseHelper.BadRequest("Invalid"),
+                    false);
+
             return new ResponseDTO<bool>(
                 200,
                 ResponseHelper.Success("sent", "OTP"),
                 true);
+
         }
 
         [HttpPost("VerifyOtp")]
-        public async Task<ResponseDTO<Employee>> VerifyOtp([FromBody] VerifyOtpDTO dto)
+        public async Task<ResponseDTO<string>> VerifyOtp([FromBody] VerifyOtpDTO dto)
         {
-            var employee = await _unitofwork.Auth.VerifyOtpAsync(dto.Email, dto.Otp);
-            if (employee == null)
-            {
-                return new ResponseDTO<Employee>(
-                    400,
-                    ResponseHelper.Invalid("OTP or OTP expired"),
-                    null);
-            }
-            return new ResponseDTO<Employee>(
+            var token = await _unitofwork.Auth.VerifyOtpAsync(dto);
+
+            if (token == null)
+                return new ResponseDTO<string>(
+                        400,
+                        ResponseHelper.Invalid("Otp"),
+                        dto.Otp.ToString()
+                );
+
+            return new ResponseDTO<string>(
                 200,
-                ResponseHelper.Success("verified", "OTP"),
-                employee);
+                ResponseHelper.Success("generated", "Token"),
+                token);
         }
 
         [HttpPost("ResetPassword")]
@@ -131,48 +163,21 @@ namespace EmpManage.Controllers
         {
             if (dto.NewPassword != dto.ConfirmPassword)
             {
-                return new ResponseDTO<bool>(
-                    400,
-                    ResponseHelper.Mismatch("Passwords"),
-                    false);
+                return new ResponseDTO<bool>(400, "Passwords do not match", false);
             }
 
-            var user = await _unitofwork.Auth.GetUserByEmailAsync(dto.Email);
-            if (user == null)
+            if (!Guid.TryParse(dto.Token, out var parsedToken))
             {
-                return new ResponseDTO<bool>(
-                    404,
-                    ResponseHelper.NotFound("User"),
-                    false);
+                return new ResponseDTO<bool>(400, "Invalid token format", false);
             }
 
-            // Hash new password to compare with old one
-            using var hmac = new HMACSHA512();
-            var newPasswordHash = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(dto.NewPassword)));
-
-            if (user.Password == newPasswordHash)
+            var result = await _unitofwork.Auth.ResetPasswordAsync(parsedToken, dto.NewPassword);
+            if (!result)
             {
-                return new ResponseDTO<bool>(
-                    400,
-                    "New password cannot be same as the old password.",
-                    false);
+                return new ResponseDTO<bool>(404, "Token is invalid or expired", false);
             }
 
-            // Proceed to update password
-            var success = await _unitofwork.Auth.ResetPasswordAsync(dto.Email, dto.NewPassword);
-            if (!success)
-            {
-                return new ResponseDTO<bool>(
-                    500,
-                    "Something went wrong while resetting the password.",
-                    false);
-            }
-
-            return new ResponseDTO<bool>(
-                200,
-                ResponseHelper.Success("reset", "Password"),
-                true);
-
+            return new ResponseDTO<bool>(200, "Password reset successful", true);
         }
 
 

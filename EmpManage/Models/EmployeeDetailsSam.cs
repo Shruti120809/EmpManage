@@ -1,4 +1,6 @@
-﻿namespace EmpManage.Models
+﻿using EmpManage.DTOs;
+
+namespace EmpManage.Models
 {
     public class EmployeeDetailsSam
     {
@@ -7,6 +9,8 @@
             public string Email { get; set; } = "";
             public string? Roles { get; set; }
             public string? MenuJson { get; set; }
+
+            public List<MenuPermissionDTO> Menus { get; set; } = new();
     }
 
 }

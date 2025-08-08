@@ -9,7 +9,7 @@ namespace EmpManage.Models
         public Role? Role { get; set; }
 
         public int PermissionId { get; set; }
-        public string PermissionName { get; set; } = string.Empty ;
+        public string PermissionNames { get; set; } = string.Empty ;
         public Permission? Permission { get; set; }
 
         public int MenuId { get; set; }

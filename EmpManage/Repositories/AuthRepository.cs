@@ -5,6 +5,7 @@ using EmpManage.Helper;
 using EmpManage.Interfaces;
 using EmpManage.Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -151,37 +152,55 @@ namespace EmpManage.Repositories
             return true;
         }
 
-        public async Task<Employee> VerifyOtpAsync(string email, string otp)
+        public async Task<string?> VerifyOtpAsync(VerifyOtpDTO dto)
         {
-            var user = await _context.Employees.FirstOrDefaultAsync(e => e.Email == email);
+            var user = await _context.Employees.FirstOrDefaultAsync(e =>
+                e.Email == dto.Email &&
+                e.Otp == dto.Otp &&
+                e.OtpGeneratedAt.HasValue &&
+                e.OtpGeneratedAt.Value.AddMinutes(10) > DateTime.UtcNow);
+
             if (user == null) return null;
 
-            if (user.Otp != otp) return null;
+            Guid resetToken = Guid.NewGuid();
 
-            if (!user.OtpGeneratedAt.HasValue || user.OtpGeneratedAt.Value.AddMinutes(10) < DateTime.UtcNow)
-                return null;
+            user.ResetToken = resetToken;
+            user.ResetTokenGeneratedAt = DateTime.UtcNow;
 
-            return user;
-        }
-        public async Task<bool> ResetPasswordAsync(string email, string newPassword)
-        {
-            var user = await _context.Employees.FirstOrDefaultAsync(u => u.Email == email);
-            if (user == null) return false;
-
-            var newPasswordHash = HashPassword(newPassword);
-
-            if (user.Password == newPasswordHash)
-            {
-                // Same password — don’t allow reset
-                return false;
-            }
-
-            user.Password = newPasswordHash;
             await _context.SaveChangesAsync();
+
+            return resetToken.ToString();
+        }
+
+
+        public async Task<Employee> GetUserByResetTokenAsync(Guid token)
+        {
+            return await _context.Employees.FirstOrDefaultAsync(e => e.ResetToken == token);
+        }
+
+        public async Task<bool> ResetPasswordAsync(Guid token, string newPassword)
+        {
+            var user = await _context.Employees
+                .FirstOrDefaultAsync(e => e.ResetToken == token);
+
+            if (user == null || !user.ResetTokenGeneratedAt.HasValue ||
+                user.ResetTokenGeneratedAt.Value.AddMinutes(15) < DateTime.UtcNow)
+                return false;
+
+            var newHashedPassword = HashPassword(newPassword);
+
+            if (newHashedPassword == user.Password)
+                return false;
+
+            user.Password = newHashedPassword;
+            user.ResetToken = null;
+            user.ResetTokenGeneratedAt = null;
+
+            _context.Employees.Update(user);
+            await _context.SaveChangesAsync();
+
             return true;
         }
-
-
 
 
         private string CreateJWTToken(Employee employee, List<string> roles)

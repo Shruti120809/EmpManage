@@ -73,23 +73,23 @@ namespace EmpManage.Data
             if (!context.RoleMenuPermission.Any())
             {
                 context.RoleMenuPermission.AddRange(
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionName = "Read" ,MenuId = 1, MenuName = "Assign Role"},
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 4, PermissionName = "Delete", MenuId = 2, MenuName = "Revoke Role" },
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 3, PermissionName = "Update", MenuId = 3, MenuName = "Manage Roles" },
+                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionNames = "Read" ,MenuId = 1, MenuName = "Assign Role"},
+                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 4, PermissionNames = "Delete", MenuId = 2, MenuName = "Revoke Role" },
+                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 3, PermissionNames = "Update", MenuId = 3, MenuName = "Manage Roles" },
 
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 1, PermissionName = "Create", MenuId = 4, MenuName = "Add Permission" },
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionName = "Read", MenuId = 5, MenuName = "View Permissions" },
+                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 1, PermissionNames = "Create", MenuId = 4, MenuName = "Add Permission" },
+                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionNames = "Read", MenuId = 5, MenuName = "View Permissions" },
 
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 1, PermissionName = "Create", MenuId = 6, MenuName = "Add Employee" },
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionName = "Read", MenuId = 7, MenuName = "View Employees" },
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 3, PermissionName = "Update", MenuId = 8, MenuName = "Edit Employee" },
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 4, PermissionName = "Delete", MenuId = 9, MenuName = "Delete Employee" },
+                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 1, PermissionNames = "Create", MenuId = 6, MenuName = "Add Employee" },
+                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionNames = "Read", MenuId = 7, MenuName = "View Employees" },
+                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 3, PermissionNames = "Update", MenuId = 8, MenuName = "Edit Employee" },
+                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 4, PermissionNames = "Delete", MenuId = 9, MenuName = "Delete Employee" },
 
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionName = "Read", MenuId = 10, MenuName = "View Logs" },
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionName = "Read", MenuId = 11, MenuName = "Access Reports" },
+                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionNames = "Read", MenuId = 10, MenuName = "View Logs" },
+                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionNames = "Read", MenuId = 11, MenuName = "Access Reports" },
 
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionName = "Read", MenuId = 12, MenuName = "Profile" },
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionName = "Read", MenuId = 13, MenuName = "Logout" }
+                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionNames = "Read", MenuId = 12, MenuName = "Profile" },
+                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionNames = "Read", MenuId = 13, MenuName = "Logout" }
                 );
                 context.SaveChanges();
             }

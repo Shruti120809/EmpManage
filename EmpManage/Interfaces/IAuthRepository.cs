@@ -13,7 +13,8 @@ namespace EmpManage.Interfaces
         Task<LoginResponseDTO> LoginAsync(LoginDTO logindto);
 
         Task<bool> GenerateResetPasswordAsync(Employee employee);
-        Task<Employee> VerifyOtpAsync(string email, string otp);
-        Task<bool> ResetPasswordAsync(string email, string newPassword);
+        Task<string> VerifyOtpAsync(VerifyOtpDTO dto);
+        Task<bool> ResetPasswordAsync(Guid token, string newPassword);
+        Task<Employee> GetUserByResetTokenAsync (Guid token);
     }
 }

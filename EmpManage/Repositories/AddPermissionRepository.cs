@@ -47,8 +47,11 @@ namespace EmpManage.Repositories
                     var newEntry = new RoleMenuPermission
                     {
                         RoleId = role.Id,
+                        RoleName = role.Name,
                         MenuId = menu.Id,
+                        MenuName = menu.Name,
                         PermissionId = permission.Id,
+                        PermissionNames = permission.Name
                     };
 
                     await _context.RoleMenuPermission.AddAsync(newEntry);

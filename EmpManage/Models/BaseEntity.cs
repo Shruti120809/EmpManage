@@ -8,5 +8,8 @@
         public string? UpdatedBy { get; set; }
 
         public bool IsDeleted { get; set; } = false;
+
+        public Guid? ResetToken { get; set; }
+        public DateTime? ResetTokenGeneratedAt { get; set;}
     }
 }
