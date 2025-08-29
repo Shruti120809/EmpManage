@@ -9,7 +9,7 @@ namespace EmpManage.Interfaces
         Task<bool> UserExists(string email);
         Task<Employee?> GetUserByEmailAsync(string email);
 
-        Task<Employee> RegisterAsync(RegisterDTO registerdto, ClaimsPrincipal user);
+        Task<EmployeeDTO> RegisterAsync(RegisterDTO registerdto);
         Task<LoginResponseDTO> LoginAsync(LoginDTO logindto);
 
         Task<bool> GenerateResetPasswordAsync(Employee employee);

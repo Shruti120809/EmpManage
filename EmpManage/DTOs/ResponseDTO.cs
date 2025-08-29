@@ -1,6 +1,13 @@
 ﻿namespace EmpManage.DTOs
 {
-    public class ResponseDTO<T>
+    public interface IResponseDTO
+    {
+        bool IsSuccess { get; }
+        object? Message { get; set; }
+        int StatusCode { get; set; }
+    }
+
+    public class ResponseDTO<T> : IResponseDTO
     {
         public int StatusCode { get; set; }
         public object? Message { get; set; }

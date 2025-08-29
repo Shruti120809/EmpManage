@@ -20,8 +20,10 @@ namespace EmpManage.Data
             using var scope = app.Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            // Apply migration
+            // Apply migrations
             context.Database.Migrate();
+
+            bool dataChanged = false;
 
             // Seed Roles
             if (!context.Roles.Any())
@@ -33,7 +35,7 @@ namespace EmpManage.Data
                     new Role { Name = "Manager" },
                     new Role { Name = "Intern" }
                 );
-                context.SaveChanges();
+                dataChanged = true;
             }
 
             // Seed Permissions
@@ -45,54 +47,24 @@ namespace EmpManage.Data
                     new Permission { Name = "Update" },
                     new Permission { Name = "Delete" }
                 );
-                context.SaveChanges();
+                dataChanged = true;
             }
 
             // Seed Menus
-            if (!context.Menus.Any())
-            {
-                context.Menus.AddRange(
-                    new Menu { Name = "Assign Role", Route = "/assign-role", Section = "Admin", Icon = "🛡️", InOrder = 1 },
-                    new Menu { Name = "Revoke Role", Route = "/revoke-role", Section = "Admin", Icon = "❌", InOrder = 2 },
-                    new Menu { Name = "Manage Roles", Route = "/manage-role", Section = "Admin", Icon = "🏷️", InOrder = 3 },
-                    new Menu { Name = "Add Permission", Route = "/add-permission", Section = "Permissions", Icon = "➕", InOrder = 1 },
-                    new Menu { Name = "View Permissions", Route = "/view-permission", Section = "Permissions", Icon = "📜", InOrder = 2 },
-                    new Menu { Name = "Add Employee", Route = "/add-employee", Section = "Employees", Icon = "➕", InOrder = 1 },
-                    new Menu { Name = "View Employees", Route = "/view-employees", Section = "Employees", Icon = "👀", InOrder = 2 },
-                    new Menu { Name = "Edit Employee", Route = "/edit-employee", Section = "Employees", Icon = "✏️", InOrder = 3 },
-                    new Menu { Name = "Delete Employee", Route = "/delete-employee", Section = "Employees", Icon = "❌", InOrder = 4 },
-                    new Menu { Name = "View Logs", Route = "/view-logs", Section = "Reports & Logs", Icon = "📂", InOrder = 1 },
-                    new Menu { Name = "Access Reports", Route = "/access-reports", Section = "Reports & Logs", Icon = "📈", InOrder = 2 },
-                    new Menu { Name = "Profile", Route = "/profile", Section = "Settings", Icon = "👤", InOrder = 1 },
-                    new Menu { Name = "Logout", Route = "/logout", Section = "Settings", Icon = "🚪", InOrder = 2 }
-                );
-                context.SaveChanges();
-            }
+            //if (!context.Menus.Any())
+            //{
+            //    context.Menus.AddRange(
+            //        );
+            //    dataChanged = true;
+            //}
 
             // Seed RoleMenuPermission for Admin
-            if (!context.RoleMenuPermission.Any())
-            {
-                context.RoleMenuPermission.AddRange(
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionNames = "Read" ,MenuId = 1, MenuName = "Assign Role"},
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 4, PermissionNames = "Delete", MenuId = 2, MenuName = "Revoke Role" },
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 3, PermissionNames = "Update", MenuId = 3, MenuName = "Manage Roles" },
-
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 1, PermissionNames = "Create", MenuId = 4, MenuName = "Add Permission" },
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionNames = "Read", MenuId = 5, MenuName = "View Permissions" },
-
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 1, PermissionNames = "Create", MenuId = 6, MenuName = "Add Employee" },
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionNames = "Read", MenuId = 7, MenuName = "View Employees" },
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 3, PermissionNames = "Update", MenuId = 8, MenuName = "Edit Employee" },
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 4, PermissionNames = "Delete", MenuId = 9, MenuName = "Delete Employee" },
-
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionNames = "Read", MenuId = 10, MenuName = "View Logs" },
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionNames = "Read", MenuId = 11, MenuName = "Access Reports" },
-
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionNames = "Read", MenuId = 12, MenuName = "Profile" },
-                    new RoleMenuPermission { RoleId = 1, RoleName = "Admin", PermissionId = 2, PermissionNames = "Read", MenuId = 13, MenuName = "Logout" }
-                );
-                context.SaveChanges();
-            }
+            //if (!context.RoleMenuPermission.Any())
+            //{
+            //    context.RoleMenuPermission.AddRange(
+            //          );
+            //    dataChanged = true;
+            //}
 
             // Seed Admin User
             var admin = context.Employees.FirstOrDefault(e => e.Email == "admin1@gmail.com");
@@ -108,20 +80,31 @@ namespace EmpManage.Data
                 };
 
                 context.Employees.Add(admin);
-                context.SaveChanges();
-                Console.WriteLine("New Admin ID: " + admin.Id);
+                context.SaveChanges(); // <-- MUST save here so admin.Id is generated
             }
 
             // Assign Admin Role
             var adminRole = context.Roles.FirstOrDefault(r => r.Name == "Admin");
-            if (adminRole != null && !context.EmpRoles.Any(er => er.EmployeeId == admin.Id && er.RoleId == adminRole.Id))
+            if (adminRole != null)
             {
-                context.EmpRoles.Add(new EmpRole
-                {
-                    EmployeeId = admin.Id,
-                    RoleId = adminRole.Id
-                });
+                var existingEmpRole = context.EmpRoles
+                    .FirstOrDefault(er => er.EmployeeId == admin.Id && er.RoleId == adminRole.Id);
 
+                if (existingEmpRole == null)
+                {
+                    context.EmpRoles.Add(new EmpRole
+                    {
+                        EmployeeId = admin.Id,   // <-- Now has a valid Id
+                        RoleId = adminRole.Id
+                    });
+                    context.SaveChanges(); // <-- Save EmpRole
+                }
+            }
+
+
+            // Save all changes in a single transaction
+            if (dataChanged)
+            {
                 context.SaveChanges();
             }
         }

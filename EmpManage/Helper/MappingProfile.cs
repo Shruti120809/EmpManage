@@ -9,17 +9,29 @@ namespace EmpManage.Helper
         public MappingProfile()
         {
             CreateMap<Employee, EmployeeDTO>()
-                .ForMember(dest => dest.Roles, opt =>
-                    opt.MapFrom(src => src.EmpRoles!
-                        .Select(er => er.Role!.Name)
-                        .Distinct()
-                        .ToList()))
-                .ForMember(dest => dest.Menus, opt =>
-                    opt.MapFrom(src => src.EmpRoles!
-                        .SelectMany(er => er.Role!.RoleMenuPermissions!)
-                        .Select(rp => rp.Menu!.Name)
-                        .Distinct()
-                        .ToList()));
+             .ForMember(dest => dest.Roles, opt =>
+                 opt.MapFrom(src => src.EmpRoles != null
+                     ? src.EmpRoles
+                         .Where(er => er.Role != null)
+                         .Select(er => er.Role!.Name)
+                         .Distinct()
+                         .ToList()
+                     : new List<string>()))
+             .ForMember(dest => dest.Menus, opt =>
+                 opt.MapFrom(src => src.EmpRoles != null
+                     ? src.EmpRoles
+                         .Where(er => er.Role != null && er.Role.RoleMenuPermissions != null)
+                         .SelectMany(er => er.Role!.RoleMenuPermissions!
+                             .Where(rmp => rmp.Menu != null)
+                             .Select(rmp => new MenuPermissionDTO
+                             {
+                                 MenuId = rmp.Menu!.Id,
+                                 MenuName = rmp.Menu!.Name
+                             }))
+                         .GroupBy(m => m.MenuId)   // prevent duplicates
+                         .Select(g => g.First())
+                         .ToList()
+                     : new List<MenuPermissionDTO>()));
 
             CreateMap<Employee, DeleteDTO>()
                 .ForMember(dest => dest.UpdatedAt, opt =>

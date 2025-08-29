@@ -36,7 +36,7 @@ namespace EmpManage.Repositories
     };
 
             var rawResult = await _context.EmployeeDetails
-                .FromSqlRaw("EXEC sp_GetAllEmployeesPaginated @Search, @SortBy, @IsAscending, @PageIndex, @PageSize", parameters)
+                .FromSqlRaw("EXEC sp_GetAllEmployees @Search, @SortBy, @IsAscending, @PageIndex, @PageSize", parameters)
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -49,6 +49,9 @@ namespace EmpManage.Repositories
                     TotalPages = 0
                 };
             }
+            var allRoles = _context.Roles
+                .Select(r => new RoleDTO { Id = r.Id, Name = r.Name })
+                .ToList();
 
             int totalRecords = rawResult.First().TotalRecords;
 
@@ -58,9 +61,12 @@ namespace EmpManage.Repositories
                 Name = e.Name,
                 Email = e.Email,
                 Roles = e.RoleName?.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                     .Select(r => r.Trim())
-                     .Distinct()
-                     .ToList() ?? new(),
+                 .Select(r => r.Trim())
+                 .Distinct()
+                 .Select(rName => allRoles.FirstOrDefault(ar => ar.Name.Equals(rName, StringComparison.OrdinalIgnoreCase)))
+                 .Where(role => role != null)
+                 .Select(role => new RoleDTO { Id = role.Id, Name = role.Name })
+                 .ToList() ?? new List<RoleDTO>(),
 
                 Menus = !string.IsNullOrEmpty(e.MenuJson)
                     ? JsonSerializer.Deserialize<List<MenuPermissionDTO>>(e.MenuJson, new JsonSerializerOptions
@@ -91,6 +97,10 @@ namespace EmpManage.Repositories
             if (!result.Any())
                 return null;
 
+            var allRoles = _context.Roles
+                .Select(r => new RoleDTO { Id = r.Id, Name = r.Name })
+                .ToList();
+
             var first = result.First();
 
             var employeeDTO = result.Select(e => new EmployeeDTO
@@ -98,7 +108,15 @@ namespace EmpManage.Repositories
                 Id = first.Id,
                 Name = first.Name,
                 Email = first.Email,
-                Roles = first.Roles?.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(r => r.Trim()).ToList() ?? new(),
+
+                Roles = first.Roles?.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                 .Select(r => r.Trim())
+                 .Distinct()
+                 .Select(rName => allRoles.FirstOrDefault(ar => ar.Name.Equals(rName, StringComparison.OrdinalIgnoreCase)))
+                 .Where(role => role != null)
+                 .Select(role => new RoleDTO { Id = role.Id, Name = role.Name })
+                 .ToList() ?? new List<RoleDTO>(),
+
                 Menus = !string.IsNullOrEmpty(first.MenuJson)
                     ? JsonSerializer.Deserialize<List<MenuPermissionDTO>>(first.MenuJson ?? "[]")
                     : new List<MenuPermissionDTO>()
@@ -171,37 +189,36 @@ namespace EmpManage.Repositories
             return deletedto;
         }
 
-        public async Task<AssignRoleDTO> AssignRoleAsync(AssignRoleDTO assignrole)
+        public async Task<UpdateRoleDTO> UpdateRolesAsync(UpdateRoleDTO dto)
         {
-            foreach (var roleId in assignrole.RoleId)
+            // Assign roles
+            foreach (var roleId in dto.RolesToAssign)
             {
                 var parameters = new[]
                 {
-                    new SqlParameter("@EmpId", assignrole.EmployeeId),
-                    new SqlParameter("@RoleId", roleId)
-                };
+            new SqlParameter("@EmpId", dto.EmployeeId),
+            new SqlParameter("@RoleId", roleId)
+        };
 
                 await _context.Database.ExecuteSqlRawAsync("EXEC sp_AssignRole @EmpId, @RoleId", parameters);
             }
 
-            return assignrole;
-        }
-
-        public async Task<RemoveRoleDTO> RemoveRoleAsync(RemoveRoleDTO dto)
-        {
-            foreach (var roleId in dto.RoleIds)
+            // Remove roles
+            foreach (var roleId in dto.RolesToRemove)
             {
                 var parameters = new[]
                 {
-                    new SqlParameter("@EmpId", dto.EmployeeId),
-                    new SqlParameter("@RoleId", roleId)
-                };
+            new SqlParameter("@EmpId", dto.EmployeeId),
+            new SqlParameter("@RoleId", roleId)
+        };
 
                 await _context.Database.ExecuteSqlRawAsync("EXEC sp_RemoveRole @EmpId, @RoleId", parameters);
             }
 
             return dto;
         }
+
+
 
         public async Task<List<RoleDTO>> GetAllRoleAsync()
         {

@@ -65,13 +65,25 @@ namespace EmpManage.Repositories
                 .ToListAsync();
 
             var menus = rolePermissions
-                .GroupBy(rmp => new { rmp.MenuId, rmp.MenuName })
+                .GroupBy(rmp => new
+                {
+                    rmp.MenuId,
+                    rmp.MenuName
+                })
                 .Select(group => new MenuPermissionDTO
                 {
                     MenuId = group.Key.MenuId,
                     MenuName = group.Key.MenuName,
-                    //Permissions = group.Select(p => p.PermissionName).Distinct().ToList()
-                }).ToList();
+                    Permissions = group
+                        .GroupBy(p => new { p.PermissionId, p.PermissionNames })
+                        .Select(p => new PermissionDTO
+                        {
+                            Id = p.Key.PermissionId,
+                            Name = p.Key.PermissionNames
+                        })
+                        .ToList()
+                })
+                .ToList();
 
             var token = CreateJWTToken(user, roleNames);
 
@@ -83,23 +95,23 @@ namespace EmpManage.Repositories
             return loginResponse;
         }
 
-        public async Task<Employee?> RegisterAsync(RegisterDTO dto, ClaimsPrincipal user)
+
+        public async Task<EmployeeDTO?> RegisterAsync(RegisterDTO dto)
         {
-            var formattedName = char.ToUpper(dto.Name[0]) + dto.Name.Substring(1).ToLower();
+            var user = ClaimsPrincipal.Current;
+            var trimmedName = dto.Name.Trim();
+            var formattedName = char.ToUpper(trimmedName[0]) + trimmedName.Substring(1).ToLower();
             var email = dto.Email.Trim().ToLower();
 
+            // ✅ Check if email already exists
             var existingUser = await _context.Employees.FirstOrDefaultAsync(e => e.Email == email);
             if (existingUser != null)
                 return null;
 
-            var trimmedName = dto.Name.Trim();
+            // Prepare values
+            var passwordHash = HashPassword(dto.Password);
+            string createdBy = "Self";
 
-            var employee = _mapper.Map<Employee>(dto);
-            employee.Name = char.ToUpper(trimmedName[0]) + trimmedName.Substring(1).ToLower();
-            employee.Password = HashPassword(dto.Password);
-            employee.CreatedAt = DateTime.UtcNow;
-
-            string createdBy;
             if (user != null)
             {
                 var roles = user.Claims
@@ -109,34 +121,55 @@ namespace EmpManage.Repositories
 
                 createdBy = roles.Contains("Admin") ? "Admin" : "Self";
             }
-            else
-            {
-                createdBy = "Self";
-            }
 
-            await _context.Database.ExecuteSqlRawAsync(
-                "EXEC sp_CreateEmployee @Name, @Email, @Password, @CreatedBy",
-                new SqlParameter("@Name", employee.Name),
-                new SqlParameter("@Email", employee.Email),
-                new SqlParameter("@Password", employee.Password),
-                new SqlParameter("@CreatedBy", createdBy)
-            );
+            // ✅ Define parameters
+            var nameParam = new SqlParameter("@Name", formattedName);
+            var emailParam = new SqlParameter("@Email", email);
+            var passwordParam = new SqlParameter("@Password", passwordHash);
+            var createdByParam = new SqlParameter("@CreatedBy", createdBy);
 
-            employee = await _context.Employees.FirstOrDefaultAsync(e => e.Email == email);
+            // ✅ Call SP and get new Id (fixing the "non-composable SQL" issue)
+            var newId = (await _context.IdResults
+                .FromSqlRaw("EXEC sp_CreateEmployee @Name, @Email, @Password, @CreatedBy",
+                    nameParam, emailParam, passwordParam, createdByParam)
+                .ToListAsync())
+                .First().NewEmployeeId;
+
+            // ✅ Fetch employee with relations
+            var employee = await _context.Employees
+                .Include(e => e.EmpRoles)!
+                    .ThenInclude(er => er.Role)!
+                        .ThenInclude(r => r.RoleMenuPermissions)!
+                            .ThenInclude(rmp => rmp.Menu)
+                .FirstOrDefaultAsync(e => e.Id == newId);
+
             if (employee == null) return null;
 
+            // ✅ Assign default "User" role if not already assigned
             var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "User");
-            if (role != null)
+            if (role != null && !employee.EmpRoles.Any(er => er.RoleId == role.Id))
             {
-                employee.EmpRoles = new List<EmpRole>
+                _context.EmpRoles.Add(new EmpRole
                 {
-                    new EmpRole { EmployeeId = employee.Id, RoleId = role.Id }
-                };
+                    EmployeeId = employee.Id,
+                    RoleId = role.Id
+                });
+
                 await _context.SaveChangesAsync();
             }
 
-            return employee;
+            // ✅ Reload employee with fresh role/menu data
+            employee = await _context.Employees
+                .Include(e => e.EmpRoles)!
+                    .ThenInclude(er => er.Role)!
+                        .ThenInclude(r => r.RoleMenuPermissions)!
+                            .ThenInclude(rmp => rmp.Menu)
+                .FirstOrDefaultAsync(e => e.Id == newId);
+
+            return _mapper.Map<EmployeeDTO>(employee);
         }
+
+
 
         public async Task<bool> GenerateResetPasswordAsync(Employee employee)
         {

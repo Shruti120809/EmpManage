@@ -13,8 +13,7 @@ namespace EmpManage.Interfaces
 
         Task<UpdateDTO> UpdateByIdAdminAsync(int id, UpdateDTO updatedto);
 
-        Task<AssignRoleDTO> AssignRoleAsync(AssignRoleDTO assignrole);
-        Task<RemoveRoleDTO> RemoveRoleAsync(RemoveRoleDTO dto);
+        Task<UpdateRoleDTO> UpdateRolesAsync(UpdateRoleDTO dto);
 
         Task<List<Role>> GetRolesByIdsAsync(List<int> ids);
         Task<Role?> GetRoleByIdAsync(int id);

@@ -71,6 +71,22 @@ namespace EmpManage.Repositories
                 _context.RoleMenuPermission.RemoveRange(existingPermissions);
             }
         }
+        public async Task<List<PermissionDTO>> GetPermissionsAsync()
+        {
+            var result = await _context.Permissions
+                .FromSqlRaw("Exec sp_GetPermissions")
+                .AsNoTracking()
+                .ToListAsync();
+
+            var permissiondto = result.Select(r => new PermissionDTO
+            {
+                Id = r.Id,
+                Name = r.Name,
+            }).ToList();
+
+            return permissiondto;
+        }
+
 
         public async Task SaveChangesAsync()
         {

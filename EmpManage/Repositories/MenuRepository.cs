@@ -23,14 +23,12 @@ namespace EmpManage.Repositories
                 new SqlParameter("@Route", dto.Route),
                 new SqlParameter("@Section",dto.Section),
                 new SqlParameter("@Icon",dto.Icon),
-                new SqlParameter("@InOrder",dto.InOrder),
-                new SqlParameter("@IsActive", dto.IsActive),
-                new SqlParameter("@IsDelete", false)
+                new SqlParameter("@InOrder",dto.InOrder)
 
             };
 
             var data = await _context.Menus
-                .FromSqlRaw("Exec sp_CreateMenu @Name, @Route, @Section, @Icon, @Inorder, @IsActive, @IsDelete", param)
+                .FromSqlRaw("Exec sp_CreateMenu @Name, @Route, @Section, @Icon, @Inorder", param)
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -96,7 +94,7 @@ namespace EmpManage.Repositories
         {
             var para = new SqlParameter("@Id", id);
             var result = await _context.Database.ExecuteSqlRawAsync(
-                "Exec sp_SoftDeleteMenu @Id", para);
+                "Exec sp_DeleteMenu @Id", para);
 
             return result > 0;
         }
