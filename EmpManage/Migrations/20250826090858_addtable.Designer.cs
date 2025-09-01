@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EmpManage.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250717074101_IdentityCol")]
-    partial class IdentityCol
+    [Migration("20250826090858_addtable")]
+    partial class addtable
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,16 @@ namespace EmpManage.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("EmpManage.DTOs.IdResult", b =>
+                {
+                    b.Property<int>("NewEmployeeId")
+                        .HasColumnType("int");
+
+                    b.ToTable((string)null);
+
+                    b.ToView(null, (string)null);
+                });
 
             modelBuilder.Entity("EmpManage.Models.EmpRole", b =>
                 {
@@ -36,6 +46,9 @@ namespace EmpManage.Migrations
                     b.HasKey("EmployeeId", "RoleId");
 
                     b.HasIndex("RoleId");
+
+                    b.HasIndex("EmployeeId", "RoleId")
+                        .IsUnique();
 
                     b.ToTable("EmpRoles");
                 });
@@ -56,7 +69,7 @@ namespace EmpManage.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -65,11 +78,23 @@ namespace EmpManage.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Otp")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("OtpGeneratedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Password")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<Guid?>("ResetToken")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ResetTokenGeneratedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("UpdatedBy")
@@ -77,7 +102,34 @@ namespace EmpManage.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Email")
+                        .IsUnique();
+
                     b.ToTable("Employees");
+                });
+
+            modelBuilder.Entity("EmpManage.Models.EmployeeDetailsSam", b =>
+                {
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MenuJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Roles")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.ToTable((string)null);
+
+                    b.ToView(null, (string)null);
                 });
 
             modelBuilder.Entity("EmpManage.Models.Menu", b =>
@@ -92,12 +144,18 @@ namespace EmpManage.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("InOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("IsActive")
+                        .HasColumnType("int");
+
+                    b.Property<int>("IsDelete")
+                        .HasColumnType("int");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("int");
 
                     b.Property<string>("Route")
                         .IsRequired()
@@ -157,14 +215,11 @@ namespace EmpManage.Migrations
                     b.Property<int>("PermissionId")
                         .HasColumnType("int");
 
-                    b.Property<int>("Id")
-                        .HasColumnType("int");
-
                     b.Property<string>("MenuName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("PermissionName")
+                    b.Property<string>("PermissionNames")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -179,6 +234,31 @@ namespace EmpManage.Migrations
                     b.HasIndex("PermissionId");
 
                     b.ToTable("RoleMenuPermission");
+                });
+
+            modelBuilder.Entity("EmployeeDetails", b =>
+                {
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MenuJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RoleName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TotalRecords")
+                        .HasColumnType("int");
+
+                    b.ToTable("EmployeeDetails");
                 });
 
             modelBuilder.Entity("EmpManage.Models.EmpRole", b =>

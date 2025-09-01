@@ -22,6 +22,16 @@ namespace EmpManage.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("EmpManage.DTOs.IdResult", b =>
+                {
+                    b.Property<int>("NewEmployeeId")
+                        .HasColumnType("int");
+
+                    b.ToTable((string)null);
+
+                    b.ToView(null, (string)null);
+                });
+
             modelBuilder.Entity("EmpManage.Models.EmpRole", b =>
                 {
                     b.Property<int>("EmployeeId")
@@ -33,6 +43,9 @@ namespace EmpManage.Migrations
                     b.HasKey("EmployeeId", "RoleId");
 
                     b.HasIndex("RoleId");
+
+                    b.HasIndex("EmployeeId", "RoleId")
+                        .IsUnique();
 
                     b.ToTable("EmpRoles");
                 });
@@ -53,7 +66,7 @@ namespace EmpManage.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -85,6 +98,9 @@ namespace EmpManage.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
 
                     b.ToTable("Employees");
                 });
