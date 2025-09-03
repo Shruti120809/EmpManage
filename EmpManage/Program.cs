@@ -92,8 +92,8 @@ builder.Services.AddCors(options =>
         policy =>
         {
             policy.WithOrigins(
-                    "http://localhost:8080",   // IIS hosted React
-                    "http://localhost:5173"    // Vite dev server
+                    "http://172.16.1.34", // IIS hosted React
+                    "http://localhost:5173"   // Vite dev server
              )
             .AllowAnyHeader()
             .AllowAnyMethod()
@@ -112,8 +112,18 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    // Enable Swagger in IIS too
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "EmpManage API v1");
+        c.RoutePrefix = "swagger"; // ensure /swagger works
+    });
+}
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 app.UseCors("AllowFrontend");
 
@@ -122,5 +132,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapGet("/", () => "EmpManage API is running...");
 
 app.Run();
