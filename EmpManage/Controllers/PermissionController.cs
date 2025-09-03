@@ -10,7 +10,7 @@ namespace EmpManage.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin")]
+    [Authorize]
     public class PermissionController : ControllerBase
     {
         private readonly IUnitOfWork _unitOfWork;
@@ -37,6 +37,7 @@ namespace EmpManage.Controllers
         }
 
         [HttpGet("GetPermissionByRole/{roleId}")]
+
         public async Task<ResponseDTO<List<RoleMenuPermission>>> GetPermissionByRole(int roleId)
         {
             Log.Information("GetPermissionByRole called for RoleId: {RoleId}", roleId);
