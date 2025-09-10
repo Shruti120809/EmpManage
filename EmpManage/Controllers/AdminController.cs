@@ -150,6 +150,32 @@ namespace EmpManage.Controllers
             }
         }
 
+        [HttpPost("MimicUser")]
+        public async Task<ResponseDTO<MimicResponseDTO>> MimicUser([FromBody] MimicUserDTO user)
+        {
+            Log.Information("Mimic User called");
+
+            try
+            {
+                var employee = await _unitOfWork.Employee.MimicUserAsync(user); // ✅ Await the async call
+                Log.Information("Retrieved User");
+
+                return new ResponseDTO<MimicResponseDTO>(
+                    200,
+                    ResponseHelper.Success("user", "Mimic"),
+                    employee); // ✅ Pass the correct type
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error in MimicUser");
+                return new ResponseDTO<MimicResponseDTO>(
+                    500,
+                    ResponseHelper.InternalError(ex.Message),
+                    null);
+            }
+        }
+
+
         [HttpGet("GetAllRoles")]
         public async Task<ResponseDTO<List<RoleDTO>>> GetAllRoles()
         {

@@ -13,8 +13,8 @@ namespace EmpManage.Extensions
             services.AddScoped<IAddPermissionRepository, AddPermissionRepository>();
             services.AddScoped<IMenuRepository, MenuRepository>();
             services.AddScoped<IEmailRepository, EmailRepository>();
-            services.AddScoped<StoredProcedureHelper>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<ICreateTokenService, CreateTokenService>();
 
             return services;
         }

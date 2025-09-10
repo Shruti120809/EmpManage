@@ -17,12 +17,23 @@ namespace EmpManage.Repositories
     {
         private readonly AppDbContext _context;
         private readonly IMapper _mapper;
+        private readonly ICreateTokenService _tokenservice;
 
-        public EmployeeRepository(AppDbContext context, IMapper mapper)
+        public EmployeeRepository(AppDbContext context, IMapper mapper, ICreateTokenService tokenservice)
         {
             _context = context;
             _mapper = mapper;
+            _tokenservice = tokenservice;
         }
+
+        public async Task<Employee?> GetUserAsync(int userId)
+        {
+            return await _context.Employees
+                .Include(e => e.EmpRoles!)
+                    .ThenInclude(er => er.Role)
+                .FirstOrDefaultAsync(e => e.Id == userId);
+        }
+
 
         public async Task<PaginationDTO<EmployeeDTO>> GetAllAsync(SortingPaginationDTO dto)
         {
@@ -218,8 +229,6 @@ namespace EmpManage.Repositories
             return dto;
         }
 
-
-
         public async Task<List<RoleDTO>> GetAllRoleAsync()
         {
             var result = await _context.Roles
@@ -236,11 +245,51 @@ namespace EmpManage.Repositories
             return roledto;
         }
 
+        public async Task<MimicResponseDTO?> MimicUserAsync(MimicUserDTO user)
+        {
 
-        public Task<Role?> GetRoleByIdAsync(int id) => throw new NotImplementedException();
-        public Task<List<Role>> GetRolesByIdsAsync(List<int> ids) => throw new NotImplementedException();
+            var dbUser = await GetUserAsync(user.UserId);
+            if (dbUser == null)
+                return null;
+
+            var roles = dbUser.EmpRoles != null
+                ? dbUser.EmpRoles
+                    .Where(r => r?.Role != null && !string.IsNullOrWhiteSpace(r.Role.Name))
+                    .Select(r => r.Role.Name)
+                    .ToList()
+                : new List<string>();
+
+            var mimicUser = new MimicUserInfoDTO
+            {
+                Id = dbUser.Id,
+                Name = dbUser.Name,
+                Email = dbUser.Email,
+                Roles = dbUser.EmpRoles != null
+                    ? dbUser.EmpRoles
+                        .Where(r => r != null)
+                        .Select(r => new RoleDTO
+                        {
+                            Id = r.RoleId,
+                            Name = r.Role?.Name ?? string.Empty,
+                        })
+                        .ToList()
+                    : new List<RoleDTO>()
+            };
+
+            var token = _tokenservice.CreateJWTToken(dbUser, roles, user.MimickedBy);
+
+            return new MimicResponseDTO
+            {
+                User = mimicUser,
+                Token = token
+            };
+        }
+
         public Task<bool> SaveChangesAsync() => throw new NotImplementedException();
+
+        public Task<Employee?> GetEntityByIdAsync(int id)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
-
-

@@ -22,13 +22,15 @@ namespace EmpManage.Repositories
         private readonly IConfiguration _config;
         private readonly IMapper _mapper;
         private readonly IEmailRepository _emailRepository;
+        private readonly ICreateTokenService _tokenService;
 
-        public AuthRepository(AppDbContext context, IConfiguration config, IMapper mapper, IEmailRepository emailRepository)
+        public AuthRepository(AppDbContext context, IConfiguration config, IMapper mapper, IEmailRepository emailRepository, ICreateTokenService tokenService)
         {
             _context = context;
             _config = config;
             _mapper = mapper;
             _emailRepository = emailRepository;
+            _tokenService = tokenService;
         }
 
         public async Task<bool> UserExists(string email)
@@ -85,7 +87,8 @@ namespace EmpManage.Repositories
                 })
                 .ToList();
 
-            var token = CreateJWTToken(user, roleNames);
+            //var token = CreateJWTToken(user, roleNames);
+            var token = _tokenService.CreateJWTToken(user, roleNames);
 
             var loginResponse = _mapper.Map<LoginResponseDTO>(user);
             loginResponse.Token = token;
@@ -103,12 +106,10 @@ namespace EmpManage.Repositories
             var formattedName = char.ToUpper(trimmedName[0]) + trimmedName.Substring(1).ToLower();
             var email = dto.Email.Trim().ToLower();
 
-            // ✅ Check if email already exists
             var existingUser = await _context.Employees.FirstOrDefaultAsync(e => e.Email == email);
             if (existingUser != null)
                 return null;
 
-            // Prepare values
             var passwordHash = HashPassword(dto.Password);
             string createdBy = "Self";
 
@@ -122,20 +123,19 @@ namespace EmpManage.Repositories
                 createdBy = roles.Contains("Admin") ? "Admin" : "Self";
             }
 
-            // ✅ Define parameters
             var nameParam = new SqlParameter("@Name", formattedName);
             var emailParam = new SqlParameter("@Email", email);
             var passwordParam = new SqlParameter("@Password", passwordHash);
             var createdByParam = new SqlParameter("@CreatedBy", createdBy);
 
-            // ✅ Call SP and get new Id (fixing the "non-composable SQL" issue)
+
             var newId = (await _context.IdResults
                 .FromSqlRaw("EXEC sp_CreateEmployee @Name, @Email, @Password, @CreatedBy",
                     nameParam, emailParam, passwordParam, createdByParam)
                 .ToListAsync())
                 .First().NewEmployeeId;
 
-            // ✅ Fetch employee with relations
+
             var employee = await _context.Employees
                 .Include(e => e.EmpRoles)!
                     .ThenInclude(er => er.Role)!
@@ -145,7 +145,6 @@ namespace EmpManage.Repositories
 
             if (employee == null) return null;
 
-            // ✅ Assign default "User" role if not already assigned
             var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "User");
             if (role != null && !employee.EmpRoles.Any(er => er.RoleId == role.Id))
             {
@@ -157,8 +156,6 @@ namespace EmpManage.Repositories
 
                 await _context.SaveChangesAsync();
             }
-
-            // ✅ Reload employee with fresh role/menu data
             employee = await _context.Employees
                 .Include(e => e.EmpRoles)!
                     .ThenInclude(er => er.Role)!
@@ -176,7 +173,7 @@ namespace EmpManage.Repositories
             var user = await _context.Employees.FirstOrDefaultAsync(u => u.Email == employee.Email);
             if (user == null) return false;
 
-            var otp = new Random().Next(100000, 999999).ToString(); // 6-digit OTP
+            var otp = new Random().Next(100000, 999999).ToString(); 
             user.Otp = otp;
             user.OtpGeneratedAt = DateTime.UtcNow;
 
@@ -233,35 +230,6 @@ namespace EmpManage.Repositories
             await _context.SaveChangesAsync();
 
             return true;
-        }
-
-
-        private string CreateJWTToken(Employee employee, List<string> roles)
-        {
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, employee.Id.ToString()),
-                new Claim(ClaimTypes.Name, employee.Name),
-                new Claim(ClaimTypes.Email, employee.Email)
-            };
-
-            foreach (var role in roles)
-            {
-                claims.Add(new Claim(ClaimTypes.Role, role));
-            }
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddHours(1),
-                signingCredentials: creds
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
         private string HashPassword(string password)

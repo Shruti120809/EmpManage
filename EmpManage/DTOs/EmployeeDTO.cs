@@ -10,7 +10,5 @@ namespace EmpManage.DTOs
         public string Email { get; set; } = string.Empty;
         public List<RoleDTO>? Roles { get; set; }
         public List<MenuPermissionDTO> Menus { get; set; } = new();
-        //public List<Permission> Permissions { get; set; } = new();
-
     }
 }
