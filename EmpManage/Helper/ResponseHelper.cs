@@ -36,7 +36,10 @@ namespace EmpManage.Helper
         public static string ValidationError(ModelStateDictionary modelState)
         {
             var errors = modelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
-            return "Validation failed: " + string.Join(", ", errors);
+            return modelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .FirstOrDefault() ?? "Validation failed.";
         }
 
         public static string Unauthorized()

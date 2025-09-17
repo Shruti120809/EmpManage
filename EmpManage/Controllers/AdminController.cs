@@ -38,7 +38,7 @@ namespace EmpManage.Controllers
 
                 return new ResponseDTO<PaginationDTO<EmployeeDTO>>(
                     200,
-                    ResponseHelper.Success("Fetched", "successfully"),
+                    ResponseHelper.Success("fetched", "Data"),
                     employees);
             }
             catch (Exception ex)
@@ -157,7 +157,7 @@ namespace EmpManage.Controllers
 
             try
             {
-                var employee = await _unitOfWork.Employee.MimicUserAsync(user); // ✅ Await the async call
+                var employee = await _unitOfWork.Employee.MimicUserAsync(user);
                 Log.Information("Retrieved User");
 
                 return new ResponseDTO<MimicResponseDTO>(
