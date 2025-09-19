@@ -7,6 +7,7 @@
         IAddPermissionRepository AddPermission { get; }
         IMenuRepository Menu { get; }
         IEmailRepository Email { get; }
+        IPaymentRepository PaymentRepository { get; }
 
         Task<int> CompleteAsync();
     }

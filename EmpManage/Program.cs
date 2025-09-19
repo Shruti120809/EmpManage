@@ -62,7 +62,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 
 // Repositories
-builder.Services.AddRepositories();
+builder.Services.AddRepositories(builder.Configuration);
 
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");

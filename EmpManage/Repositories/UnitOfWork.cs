@@ -13,13 +13,16 @@ namespace EmpManage.Repositories
         public IMenuRepository Menu { get; }
         public IAddPermissionRepository AddPermission { get; }
         public IEmailRepository Email { get; }
+        public IPaymentRepository PaymentRepository { get; }
 
         public UnitOfWork(AppDbContext context,
                           IAuthRepository authRepository,
                           IEmployeeRepository employeeRepository, 
                           IMenuRepository menuRepository,
                           IAddPermissionRepository addPermissionRepository,
-                          IEmailRepository emailRepository)
+                          IEmailRepository emailRepository,
+                          IPaymentRepository paymentRepository)
+                        
         {
             _context = context;
             Auth = authRepository;
@@ -27,7 +30,7 @@ namespace EmpManage.Repositories
             Menu = menuRepository;
             AddPermission = addPermissionRepository;
             Email = emailRepository;
-            
+            PaymentRepository = paymentRepository;
         }
 
         public async Task<int> CompleteAsync()

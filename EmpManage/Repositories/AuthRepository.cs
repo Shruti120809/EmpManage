@@ -63,6 +63,7 @@ namespace EmpManage.Repositories
                 .ToList() ?? new List<string>();
 
             var rolePermissions = await _context.RoleMenuPermission
+                .Include(rmp => rmp.Menu)   // 👈 load related Menu
                 .Where(rmp => roleIds.Contains(rmp.RoleId))
                 .ToListAsync();
 
@@ -70,20 +71,26 @@ namespace EmpManage.Repositories
                 .GroupBy(rmp => new
                 {
                     rmp.MenuId,
-                    rmp.MenuName
+                    rmp.MenuName,
+                    Route = rmp.Menu!.Route,
+                    Icon = rmp.Menu!.Icon,
+                    Section = rmp.Menu!.Section
                 })
                 .Select(group => new MenuPermissionDTO
                 {
                     MenuId = group.Key.MenuId,
                     MenuName = group.Key.MenuName,
+                    Route = group.Key.Route,
+                    Icon = group.Key.Icon,
+                    Section = group.Key.Section,
                     Permissions = group
-                        .GroupBy(p => new { p.PermissionId, p.PermissionNames })
-                        .Select(p => new PermissionDTO
+                    .GroupBy(p => new { p.PermissionId, p.PermissionNames })
+                    .Select(p => new PermissionDTO
                         {
                             Id = p.Key.PermissionId,
                             Name = p.Key.PermissionNames
                         })
-                        .ToList()
+                    .ToList()
                 })
                 .ToList();
 
