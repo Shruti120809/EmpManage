@@ -91,6 +91,17 @@ namespace EmpManage.Controllers
             }
         }
 
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh([FromBody] RefreshRequestDTO dto)
+        {
+            var response = await _unitofwork.Auth.RefreshTokenAsync(dto.RefreshToken);
+            if (response == null)
+                return Unauthorized();
+
+            return Ok(response);
+        }
+
+
         [HttpPost("ForgotPassword")]
         public async Task<ResponseDTO<bool>> ForgotPassword([FromBody] ForgetPasswordDTO dto)
         {

@@ -11,5 +11,8 @@
 
         public Guid? ResetToken { get; set; }
         public DateTime? ResetTokenGeneratedAt { get; set;}
+
+        public string? RefreshToken { get; set; }
+        public DateTime? RefreshTokenExpireAt { get; set; }
     }
 }

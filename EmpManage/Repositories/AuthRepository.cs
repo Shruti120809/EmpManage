@@ -63,7 +63,7 @@ namespace EmpManage.Repositories
                 .ToList() ?? new List<string>();
 
             var rolePermissions = await _context.RoleMenuPermission
-                .Include(rmp => rmp.Menu)   // 👈 load related Menu
+                .Include(rmp => rmp.Menu)
                 .Where(rmp => roleIds.Contains(rmp.RoleId))
                 .ToListAsync();
 
@@ -96,16 +96,46 @@ namespace EmpManage.Repositories
 
             //var token = CreateJWTToken(user, roleNames);
             var token = _tokenService.CreateJWTToken(user, roleNames);
+            var refreshtoken = GenerateRefreshToken();
+            user.RefreshToken = refreshtoken;
+            user.RefreshTokenExpireAt = DateTime.UtcNow.AddDays(7);
+            await _context.SaveChangesAsync();
 
             var loginResponse = _mapper.Map<LoginResponseDTO>(user);
             loginResponse.Token = token;
+            loginResponse.RefreshToken = refreshtoken;
             loginResponse.Roles = roleNames;
             loginResponse.Menus = menus;
 
             return loginResponse;
         }
 
+        public async Task<LoginResponseDTO?> RefreshTokenAsync(string refreshtoken)
+        {
+            var user = await _context.Employees
+                .Include(e => e.EmpRoles!)
+                    .ThenInclude(er => er.Role)
+                .FirstOrDefaultAsync(e => e.RefreshToken == refreshtoken);
 
+            if (user == null || user.RefreshTokenExpireAt < DateTime.UtcNow)
+                return null;
+
+            var roleNames = user.EmpRoles?.Select(r => r.Role!.Name).ToList() ?? new List<string>();
+
+            var newJwtToken = _tokenService.CreateJWTToken(user, roleNames);
+            var newRefreshToken = GenerateRefreshToken();
+
+            user.RefreshToken = newRefreshToken;
+            user.RefreshTokenExpireAt = DateTime.UtcNow.AddDays(7);
+            await _context.SaveChangesAsync();
+
+            var response = _mapper.Map<LoginResponseDTO>(user);
+            response.Token = newJwtToken;
+            response.RefreshToken = newRefreshToken;
+            response.Roles = roleNames;
+
+            return response;
+        }
         public async Task<EmployeeDTO?> RegisterAsync(RegisterDTO dto)
         {
             var user = ClaimsPrincipal.Current;
@@ -245,6 +275,16 @@ namespace EmpManage.Repositories
             var bytes = Encoding.UTF8.GetBytes(password);
             var hashBytes = sha256.ComputeHash(bytes);
             return Convert.ToBase64String(hashBytes);
+        }
+
+        private string GenerateRefreshToken()
+        {
+            var randomNumber = new byte[32];
+            using( var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(randomNumber);
+                return Convert.ToBase64String(randomNumber);
+            }
         }
     }
 }
